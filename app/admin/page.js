@@ -86,7 +86,7 @@ export default function Admin() {
 
   useEffect(() => {
     if (usuarios.length === 0) return
-    const ids = usuarios.filter(u => u.rol === 'empleado' || u.rol === 'supervisor').map(u => u.id)
+    const ids = usuarios.map(u => u.id)
     let query = supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin)
     if (filtroMotivo !== 'todos') query = query.eq('motivo', filtroMotivo)
     query.then(({ data }) => setAusencias(data || []))
@@ -144,7 +144,6 @@ export default function Admin() {
   }
 
   const empleadosFiltrados = usuarios.filter(u =>
-    (u.rol === 'empleado' || u.rol === 'supervisor') &&
     (filtroDept === 'Todos' || u.departamento === filtroDept)
   )
 
