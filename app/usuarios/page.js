@@ -74,27 +74,23 @@ export default function Usuarios() {
       if (error) { setError('Error al actualizar.') }
       else { setMensaje('Usuario actualizado.'); setEditando(null); resetForm() }
     } else {
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: form.email,
-        password: form.password,
-        email_confirm: true,
-        user_metadata: { nombre: form.nombre, rol }
+      const res = await fetch('/api/crear-usuario', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+          nombre: form.nombre,
+          rol: form.es_supervisor ? 'supervisor' : 'empleado',
+          departamento: form.departamento,
+          fecha_ingreso: form.fecha_ingreso,
+          supervisor_id
+        })
       })
-
-      if (authError) {
-        setError('Error al crear usuario: ' + authError.message)
-        setLoading(false)
-        return
-      }
-
-      await supabase.from('usuarios').update({
-        nombre: form.nombre,
-        rol,
-        departamento: form.departamento,
-        fecha_ingreso: form.fecha_ingreso || null,
-        supervisor_id
-      }).eq('id', authData.user.id)
-
+      
+      const result = await res.json()
+      if (!result.ok) { setError('Error: ' + result.error); setLoading(false); return }
+      
       setMensaje('Usuario creado correctamente.')
       resetForm()
     }
