@@ -1,17 +1,15 @@
 'use client'
+export const dynamic = 'force-dynamic'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useCategorias } from '../../lib/useCategorias'
-
-const DEPARTAMENTOS = ['Todos', 'MKT & PROD', 'BOOKING', 'CRUCEROS', 'USHUAIA', 'TRAFICO', 'MICE', 'ADM', 'SISTEMAS']
 
 export default function Supervisor() {
   const [usuario, setUsuario] = useState(null)
   const [empleados, setEmpleados] = useState([])
   const [ausencias, setAusencias] = useState([])
   const [semanaOffset, setSemanaOffset] = useState(0)
-  const [filtroDept, setFiltroDept] = useState('Todos')
   const { categorias } = useCategorias()
   const router = useRouter()
 
@@ -37,18 +35,8 @@ export default function Supervisor() {
       const { data: sup } = await supabase.from('usuarios').select('*').eq('id', user.id).single()
       if (sup?.rol !== 'supervisor') { router.push('/empleado'); return }
       setUsuario(sup)
-      const { data: supData } = await supabase.from('departamentos').select('nombre').eq('supervisor_id', user.id).single()
-      const { data: emps } = await supabase.from('usuarios').select('*').eq('departamento', supData?.nombre)
-      setEmpleados(emps || [])
-      .from('departamentos')
-      .select('nombre')
-      .eq('supervisor_id', user.id)
-      .single()
-    
-    const { data: emps } = await supabase
-      .from('usuarios')
-      .select('*')
-      .eq('departamento', dept?.nombre)
+      const { data: dept } = await supabase.from('departamentos').select('nombre').eq('supervisor_id', user.id).single()
+      const { data: emps } = await supabase.from('usuarios').select('*').eq('departamento', dept?.nombre)
       setEmpleados(emps || [])
     }
     init()
@@ -63,8 +51,6 @@ export default function Supervisor() {
     }
     cargarAusencias()
   }, [empleados, semanaOffset])
-
-  const empleadosFiltrados = filtroDept === 'Todos' ? empleados : empleados.filter(e => e.departamento === filtroDept)
 
   const tieneAusencia = (empleadoId, fecha) => {
     const fechaStr = fecha.toISOString().split('T')[0]
@@ -100,11 +86,11 @@ export default function Supervisor() {
         </div>
 
         <div className="bg-white rounded-xl shadow px-6 py-4 mb-4 flex items-center gap-3">
-  <span className="text-sm text-gray-500">Departamento:</span>
-  <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-600 text-white">
-    {empleados[0]?.departamento || 'Sin departamento'}
-  </span>
-</div>
+          <span className="text-sm text-gray-500">Departamento:</span>
+          <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-600 text-white">
+            {empleados[0]?.departamento || 'Sin departamento'}
+          </span>
+        </div>
 
         <div className="flex items-center justify-between bg-white rounded-xl shadow px-6 py-3 mb-4">
           <button onClick={() => setSemanaOffset(s => s - 1)} className="text-blue-600 hover:underline font-medium">Semana anterior</button>
@@ -122,10 +108,10 @@ export default function Supervisor() {
               </tr>
             </thead>
             <tbody>
-              {empleadosFiltrados.length === 0 ? (
+              {empleados.length === 0 ? (
                 <tr><td colSpan={7} className="text-center text-gray-400 py-8">No hay empleados en este departamento.</td></tr>
               ) : (
-                empleadosFiltrados.map((emp) => (
+                empleados.map((emp) => (
                   <tr key={emp.id} className="border-b hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium text-gray-700">{emp.nombre}</td>
                     <td className="px-4 py-3 text-gray-400 text-xs">{emp.departamento || '-'}</td>
