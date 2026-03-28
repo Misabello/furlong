@@ -9,6 +9,7 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [mensajeRecuperar, setMensajeRecuperar] = useState('')
   const router = useRouter()
 
   const handleLogin = async (e) => {
@@ -38,6 +39,21 @@ export default function Login() {
       router.push('/empleado')
     }
     setLoading(false)
+  }
+
+  const handleRecuperar = async () => {
+    if (!email) {
+      setMensajeRecuperar('Ingresa tu email primero.')
+      return
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/nueva-contrasena'
+    })
+    if (error) {
+      setMensajeRecuperar('Error al enviar el email.')
+    } else {
+      setMensajeRecuperar('Te enviamos un email para restablecer tu contrasena.')
+    }
   }
 
   return (
@@ -79,6 +95,14 @@ export default function Login() {
           >
             {loading ? 'Ingresando...' : 'Ingresar'}
           </button>
+          <button
+            type="button"
+            onClick={handleRecuperar}
+            className="w-full text-sm text-gray-500 hover:text-blue-600 mt-2"
+          >
+            Olvide mi contrasena
+          </button>
+          {mensajeRecuperar && <p className="text-sm text-blue-600 text-center mt-2">{mensajeRecuperar}</p>}
         </form>
       </div>
     </main>
