@@ -71,9 +71,7 @@ export default function Admin() {
 
   useEffect(() => {
     if (usuarios.length === 0) return
-    const ids = usuarios
-      .filter(u => u.rol === 'empleado' || u.rol === 'supervisor')
-      .map(u => u.id)
+    const ids = usuarios.filter(u => u.rol === 'empleado' || u.rol === 'supervisor').map(u => u.id)
     let query = supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin)
     if (filtroMotivo !== 'todos') query = query.eq('motivo', filtroMotivo)
     query.then(({ data }) => setAusencias(data || []))
@@ -106,7 +104,6 @@ export default function Admin() {
     setError('')
     const dept = departamentos.find(d => d.nombre === form.departamento)
     const supervisor_id = dept?.supervisor_id || null
-
     if (editando) {
       const { error } = await supabase.from('usuarios').update({
         nombre: form.nombre, rol: form.rol, departamento: form.departamento,
@@ -118,11 +115,7 @@ export default function Admin() {
       const res = await fetch('/api/crear-usuario', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: form.email, password: form.password, nombre: form.nombre,
-          rol: form.rol, departamento: form.departamento,
-          fecha_ingreso: form.fecha_ingreso, supervisor_id
-        })
+        body: JSON.stringify({ email: form.email, password: form.password, nombre: form.nombre, rol: form.rol, departamento: form.departamento, fecha_ingreso: form.fecha_ingreso, supervisor_id })
       })
       const result = await res.json()
       if (!result.ok) { setError('Error: ' + result.error); setLoading(false); return }
@@ -168,7 +161,6 @@ export default function Admin() {
     <main className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-7xl mx-auto">
 
-        {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Panel Admin</h1>
@@ -176,6 +168,7 @@ export default function Admin() {
           </div>
           <div className="flex items-center gap-3">
             <Image src="/logo.png" alt="Furlong" width={120} height={40} className="object-contain" />
+            <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-500 hover:text-blue-600">❓ Ayuda</a>
             {['calendario','usuarios','departamentos','categorias','ausencias'].map(t => (
               <button key={t} onClick={() => setTab(t)} className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition ${tab === t ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}>
                 {t === 'calendario' ? '📅 Calendario' : t === 'usuarios' ? '👥 Usuarios' : t === 'departamentos' ? '🏢 Departamentos' : t === 'categorias' ? '🏷️ Categorias' : '📊 Reportes'}
@@ -185,7 +178,6 @@ export default function Admin() {
           </div>
         </div>
 
-        {/* CALENDARIO */}
         {tab === 'calendario' && (
           <>
             <div className="bg-white rounded-xl shadow px-6 py-4 mb-4">
@@ -278,7 +270,6 @@ export default function Admin() {
           </>
         )}
 
-        {/* USUARIOS */}
         {tab === 'usuarios' && (
           <>
             <div className="bg-white rounded-xl shadow p-6 mb-6">
@@ -365,7 +356,6 @@ export default function Admin() {
           </>
         )}
 
-        {/* DEPARTAMENTOS */}
         {tab === 'departamentos' && (
           <div className="bg-white rounded-xl shadow overflow-x-auto">
             <table className="w-full text-sm">
@@ -392,12 +382,10 @@ export default function Admin() {
           </div>
         )}
 
-        {/* CATEGORIAS */}
         {tab === 'categorias' && (
           <iframe src="/categorias" className="w-full h-screen rounded-xl shadow border-0" />
         )}
 
-        {/* AUSENCIAS / REPORTES */}
         {tab === 'ausencias' && (
           <iframe src="/reportes" className="w-full h-screen rounded-xl shadow border-0" />
         )}

@@ -99,6 +99,7 @@ export default function Supervisor() {
           </div>
           <div className="flex items-center gap-4">
             <Image src="/logo.png" alt="Furlong" width={120} height={40} className="object-contain" />
+            <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-500 hover:text-blue-600">❓ Ayuda</a>
             <button onClick={() => router.push('/perfil')} className="text-sm text-blue-600 hover:underline">Mi perfil</button>
             <button onClick={() => router.push('/reportes')} className="text-sm text-blue-600 hover:underline">Reportes</button>
             <button onClick={() => router.push('/usuarios')} className="text-sm text-blue-600 hover:underline">Usuarios</button>
@@ -113,7 +114,6 @@ export default function Supervisor() {
           </span>
         </div>
 
-        {/* Filtros */}
         <div className="bg-white rounded-xl shadow px-6 py-4 mb-4">
           <div className="flex flex-wrap gap-4 items-end">
             <div>
@@ -123,11 +123,8 @@ export default function Supervisor() {
                 {categorias.map(c => <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>)}
               </select>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => { setModoFiltro(!modoFiltro); setFiltroDesde(''); setFiltroHasta('') }}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${modoFiltro ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-              >
+            <div>
+              <button onClick={() => { setModoFiltro(!modoFiltro); setFiltroDesde(''); setFiltroHasta('') }} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${modoFiltro ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                 Filtrar por fecha
               </button>
             </div>
@@ -146,7 +143,6 @@ export default function Supervisor() {
           </div>
         </div>
 
-        {/* Navegacion semana */}
         {!modoFiltro && (
           <div className="flex items-center justify-between bg-white rounded-xl shadow px-6 py-3 mb-4">
             <button onClick={() => setSemanaOffset(s => s - 1)} className="text-blue-600 hover:underline font-medium">Semana anterior</button>
@@ -155,7 +151,6 @@ export default function Supervisor() {
           </div>
         )}
 
-        {/* Calendario */}
         <div className="bg-white rounded-xl shadow overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
