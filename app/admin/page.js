@@ -19,6 +19,10 @@ export default function Admin() {
   const [tab, setTab] = useState('calendario')
   const [semanaOffset, setSemanaOffset] = useState(0)
   const [filtroDept, setFiltroDept] = useState('Todos')
+  const [filtroMotivo, setFiltroMotivo] = useState('todos')
+  const [filtroDesde, setFiltroDesde] = useState('')
+  const [filtroHasta, setFiltroHasta] = useState('')
+  const [modoFiltro, setModoFiltro] = useState(false)
   const { categorias } = useCategorias()
   const router = useRouter()
 
@@ -34,10 +38,23 @@ export default function Admin() {
   }
 
   const dias = getDiasSemana(semanaOffset)
-  const fechaInicio = dias[0].toISOString().split('T')[0]
-  const fechaFin = dias[4].toISOString().split('T')[0]
+  const fechaInicio = modoFiltro && filtroDesde ? filtroDesde : dias[0].toISOString().split('T')[0]
+  const fechaFin = modoFiltro && filtroHasta ? filtroHasta : dias[4].toISOString().split('T')[0]
   const formatFecha = (d) => d.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })
   const getCat = (nombre) => categorias.find(c => c.nombre === nombre) || { emoji: '📝', color: 'bg-gray-100 text-gray-600' }
+
+  const diasMostrar = modoFiltro && filtroDesde && filtroHasta
+    ? (() => {
+        const result = []
+        const current = new Date(filtroDesde)
+        const end = new Date(filtroHasta)
+        while (current <= end) {
+          if (current.getDay() !== 0 && current.getDay() !== 6) result.push(new Date(current))
+          current.setDate(current.getDate() + 1)
+        }
+        return result
+      })()
+    : dias
 
   useEffect(() => {
     const init = async () => {
@@ -55,9 +72,10 @@ export default function Admin() {
   useEffect(() => {
     if (usuarios.length === 0) return
     const ids = usuarios.map(u => u.id)
-    supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin)
-      .then(({ data }) => setAusencias(data || []))
-  }, [usuarios, semanaOffset])
+    let query = supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin)
+    if (filtroMotivo !== 'todos') query = query.eq('motivo', filtroMotivo)
+    query.then(({ data }) => setAusencias(data || []))
+  }, [usuarios, semanaOffset, filtroMotivo, filtroDesde, filtroHasta, modoFiltro])
 
   const cargarUsuarios = async () => {
     const { data } = await supabase.from('usuarios').select('*').order('nombre')
@@ -151,11 +169,11 @@ export default function Admin() {
             <h1 className="text-2xl font-bold text-gray-800">Panel Admin</h1>
             <p className="text-gray-500 text-sm">Hola, {usuario.nombre}</p>
           </div>
-          <div className="flex gap-3 items-center">
+          <div className="flex items-center gap-3">
             <Image src="/logo.png" alt="Furlong" width={120} height={40} className="object-contain" />
             {['calendario','usuarios','departamentos','categorias','ausencias'].map(t => (
               <button key={t} onClick={() => setTab(t)} className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition ${tab === t ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}>
-                {t === 'calendario' ? '📅 Calendario' : t === 'usuarios' ? '👥 Usuarios' : t === 'departamentos' ? '🏢 Departamentos' : t === 'categorias' ? '🏷️ Categorias' : '📋 Ausencias'}
+                {t === 'calendario' ? '📅 Calendario' : t === 'usuarios' ? '👥 Usuarios' : t === 'departamentos' ? '🏢 Departamentos' : t === 'categorias' ? '🏷️ Categorias' : '📊 Reportes'}
               </button>
             ))}
             <button onClick={handleLogout} className="text-sm text-red-500 hover:underline ml-2">Salir</button>
@@ -165,56 +183,90 @@ export default function Admin() {
         {/* CALENDARIO */}
         {tab === 'calendario' && (
           <>
-            <div className="bg-white rounded-xl shadow px-6 py-4 mb-4 flex flex-wrap gap-2">
-              {deptos.map(d => (
-                <button key={d} onClick={() => setFiltroDept(d)} className={`px-3 py-1 rounded-full text-sm font-medium transition ${filtroDept === d ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{d}</button>
-              ))}
+            <div className="bg-white rounded-xl shadow px-6 py-4 mb-4">
+              <div className="flex flex-wrap gap-4 items-end">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Departamento</label>
+                  <select value={filtroDept} onChange={e => setFiltroDept(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    {deptos.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Tipo de ausencia</label>
+                  <select value={filtroMotivo} onChange={e => setFiltroMotivo(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="todos">Todos</option>
+                    {categorias.map(c => <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <button onClick={() => { setModoFiltro(!modoFiltro); setFiltroDesde(''); setFiltroHasta('') }} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${modoFiltro ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    Filtrar por fecha
+                  </button>
+                </div>
+                {modoFiltro && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Desde</label>
+                      <input type="date" value={filtroDesde} onChange={e => setFiltroDesde(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Hasta</label>
+                      <input type="date" value={filtroHasta} min={filtroDesde} onChange={e => setFiltroHasta(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
-            <div className="flex items-center justify-between bg-white rounded-xl shadow px-6 py-3 mb-4">
-              <button onClick={() => setSemanaOffset(s => s - 1)} className="text-blue-600 hover:underline font-medium">Semana anterior</button>
-              <p className="text-gray-700 font-medium">{formatFecha(dias[0])} - {formatFecha(dias[4])}</p>
-              <button onClick={() => setSemanaOffset(s => s + 1)} className="text-blue-600 hover:underline font-medium">Semana siguiente</button>
-            </div>
+
+            {!modoFiltro && (
+              <div className="flex items-center justify-between bg-white rounded-xl shadow px-6 py-3 mb-4">
+                <button onClick={() => setSemanaOffset(s => s - 1)} className="text-blue-600 hover:underline font-medium">Semana anterior</button>
+                <p className="text-gray-700 font-medium">{formatFecha(dias[0])} - {formatFecha(dias[4])}</p>
+                <button onClick={() => setSemanaOffset(s => s + 1)} className="text-blue-600 hover:underline font-medium">Semana siguiente</button>
+              </div>
+            )}
+
             <div className="bg-white rounded-xl shadow overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-gray-50">
                     <th className="text-left px-4 py-3 text-gray-600 font-semibold">Empleado</th>
-                    <th className="text-left px-4 py-3 text-gray-600 font-semibold">Depto.</th>
-                    {dias.map((d, i) => <th key={i} className="px-4 py-3 text-gray-600 font-semibold text-center">{formatFecha(d)}</th>)}
+                    {diasMostrar.map((d, i) => <th key={i} className="px-4 py-3 text-gray-600 font-semibold text-center">{formatFecha(d)}</th>)}
                   </tr>
                 </thead>
                 <tbody>
-  {empleadosFiltrados
-    .filter(emp => dias.some(d => tieneAusencia(emp.id, d)))
-    .length === 0 ? (
-    <tr><td colSpan={7} className="text-center text-gray-400 py-8">No hay ausencias esta semana.</td></tr>
-  ) : (
-    empleadosFiltrados
-      .filter(emp => dias.some(d => tieneAusencia(emp.id, d)))
-      .map(emp => (
-        <tr key={emp.id} className="border-b hover:bg-gray-50">
-          <td className="px-4 py-3 font-medium text-gray-700">{emp.nombre}</td>
-          <td className="px-4 py-3 text-gray-400 text-xs">{emp.departamento || '-'}</td>
-          {dias.map((d, i) => {
-            const ausencia = tieneAusencia(emp.id, d)
-            const cat = ausencia ? getCat(ausencia.motivo) : null
-            return (
-              <td key={i} className="px-4 py-3 text-center">
-                {ausencia ? (
-                  <span className={cat.color + ' inline-block px-2 py-1 rounded-full text-xs font-medium'}>
-                    {cat.emoji} {ausencia.motivo}
-                  </span>
-                ) : (
-                  <span className="text-gray-200 text-xs">—</span>
-                )}
-              </td>
-            )
-          })}
-        </tr>
-      ))
-  )}
-</tbody>
+                  {empleadosFiltrados.filter(emp => diasMostrar.some(d => tieneAusencia(emp.id, d))).length === 0 ? (
+                    <tr><td colSpan={diasMostrar.length + 1} className="text-center text-gray-400 py-8">No hay ausencias en este periodo.</td></tr>
+                  ) : (
+                    empleadosFiltrados.filter(emp => diasMostrar.some(d => tieneAusencia(emp.id, d))).map(emp => (
+                      <tr key={emp.id} className="border-b hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-gray-700">{emp.nombre}</p>
+                          {diasMostrar.map(d => tieneAusencia(emp.id, d)).find(a => a?.fecha_carga) && (
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              Cargado: {new Date(diasMostrar.map(d => tieneAusencia(emp.id, d)).find(a => a?.fecha_carga)?.fecha_carga).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          )}
+                        </td>
+                        {diasMostrar.map((d, i) => {
+                          const ausencia = tieneAusencia(emp.id, d)
+                          const cat = ausencia ? getCat(ausencia.motivo) : null
+                          return (
+                            <td key={i} className="px-4 py-3 text-center">
+                              {ausencia ? (
+                                <span className={cat.color + ' inline-block px-2 py-1 rounded-full text-xs font-medium'}>
+                                  {cat.emoji} {ausencia.motivo}
+                                </span>
+                              ) : (
+                                <span className="text-gray-200 text-xs">—</span>
+                              )}
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
               </table>
             </div>
           </>
@@ -339,7 +391,7 @@ export default function Admin() {
           <iframe src="/categorias" className="w-full h-screen rounded-xl shadow border-0" />
         )}
 
-        {/* AUSENCIAS */}
+        {/* AUSENCIAS / REPORTES */}
         {tab === 'ausencias' && (
           <iframe src="/reportes" className="w-full h-screen rounded-xl shadow border-0" />
         )}

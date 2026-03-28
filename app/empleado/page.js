@@ -77,7 +77,8 @@ export default function Empleado() {
       empleado_id: usuario.id,
       fecha: f,
       motivo,
-      descripcion
+      descripcion,
+      fecha_carga: new Date().toISOString()
     }))
 
     const { error } = await supabase.from('ausencias').insert(registros)

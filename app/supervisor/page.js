@@ -11,6 +11,10 @@ export default function Supervisor() {
   const [empleados, setEmpleados] = useState([])
   const [ausencias, setAusencias] = useState([])
   const [semanaOffset, setSemanaOffset] = useState(0)
+  const [filtroMotivo, setFiltroMotivo] = useState('todos')
+  const [filtroDesde, setFiltroDesde] = useState('')
+  const [filtroHasta, setFiltroHasta] = useState('')
+  const [modoFiltro, setModoFiltro] = useState(false)
   const { categorias } = useCategorias()
   const router = useRouter()
 
@@ -26,8 +30,21 @@ export default function Supervisor() {
   }
 
   const dias = getDiasSemana(semanaOffset)
-  const fechaInicio = dias[0].toISOString().split('T')[0]
-  const fechaFin = dias[4].toISOString().split('T')[0]
+  const fechaInicio = modoFiltro && filtroDesde ? filtroDesde : dias[0].toISOString().split('T')[0]
+  const fechaFin = modoFiltro && filtroHasta ? filtroHasta : dias[4].toISOString().split('T')[0]
+
+  const diasMostrar = modoFiltro && filtroDesde && filtroHasta
+    ? (() => {
+        const result = []
+        const current = new Date(filtroDesde)
+        const end = new Date(filtroHasta)
+        while (current <= end) {
+          if (current.getDay() !== 0 && current.getDay() !== 6) result.push(new Date(current))
+          current.setDate(current.getDate() + 1)
+        }
+        return result
+      })()
+    : dias
 
   useEffect(() => {
     const init = async () => {
@@ -47,11 +64,13 @@ export default function Supervisor() {
     if (empleados.length === 0) return
     const cargarAusencias = async () => {
       const ids = empleados.map(e => e.id)
-      const { data } = await supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin)
+      let query = supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin)
+      if (filtroMotivo !== 'todos') query = query.eq('motivo', filtroMotivo)
+      const { data } = await query
       setAusencias(data || [])
     }
     cargarAusencias()
-  }, [empleados, semanaOffset])
+  }, [empleados, semanaOffset, filtroMotivo, filtroDesde, filtroHasta, modoFiltro])
 
   const tieneAusencia = (empleadoId, fecha) => {
     const fechaStr = fecha.toISOString().split('T')[0]
@@ -66,6 +85,7 @@ export default function Supervisor() {
   }
 
   const formatFecha = (d) => d.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })
+  const formatFechaCarga = (f) => f ? new Date(f).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''
 
   if (!usuario) return <main className="min-h-screen bg-gray-100 flex items-center justify-center"><p className="text-gray-500">Cargando...</p></main>
 
@@ -93,30 +113,72 @@ export default function Supervisor() {
           </span>
         </div>
 
-        <div className="flex items-center justify-between bg-white rounded-xl shadow px-6 py-3 mb-4">
-          <button onClick={() => setSemanaOffset(s => s - 1)} className="text-blue-600 hover:underline font-medium">Semana anterior</button>
-          <p className="text-gray-700 font-medium">{formatFecha(dias[0])} - {formatFecha(dias[4])}</p>
-          <button onClick={() => setSemanaOffset(s => s + 1)} className="text-blue-600 hover:underline font-medium">Semana siguiente</button>
+        {/* Filtros */}
+        <div className="bg-white rounded-xl shadow px-6 py-4 mb-4">
+          <div className="flex flex-wrap gap-4 items-end">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Tipo de ausencia</label>
+              <select value={filtroMotivo} onChange={e => setFiltroMotivo(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="todos">Todos</option>
+                {categorias.map(c => <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>)}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { setModoFiltro(!modoFiltro); setFiltroDesde(''); setFiltroHasta('') }}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${modoFiltro ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                Filtrar por fecha
+              </button>
+            </div>
+            {modoFiltro && (
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Desde</label>
+                  <input type="date" value={filtroDesde} onChange={e => setFiltroDesde(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Hasta</label>
+                  <input type="date" value={filtroHasta} min={filtroDesde} onChange={e => setFiltroHasta(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
+        {/* Navegacion semana */}
+        {!modoFiltro && (
+          <div className="flex items-center justify-between bg-white rounded-xl shadow px-6 py-3 mb-4">
+            <button onClick={() => setSemanaOffset(s => s - 1)} className="text-blue-600 hover:underline font-medium">Semana anterior</button>
+            <p className="text-gray-700 font-medium">{formatFecha(dias[0])} - {formatFecha(dias[4])}</p>
+            <button onClick={() => setSemanaOffset(s => s + 1)} className="text-blue-600 hover:underline font-medium">Semana siguiente</button>
+          </div>
+        )}
+
+        {/* Calendario */}
         <div className="bg-white rounded-xl shadow overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-gray-50">
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold">Empleado</th>
-                <th className="text-left px-4 py-3 text-gray-600 font-semibold">Depto.</th>
-                {dias.map((d, i) => <th key={i} className="px-4 py-3 text-gray-600 font-semibold text-center">{formatFecha(d)}</th>)}
+                {diasMostrar.map((d, i) => <th key={i} className="px-4 py-3 text-gray-600 font-semibold text-center">{formatFecha(d)}</th>)}
               </tr>
             </thead>
             <tbody>
-              {empleados.filter(emp => dias.some(d => tieneAusencia(emp.id, d))).length === 0 ? (
-                <tr><td colSpan={7} className="text-center text-gray-400 py-8">No hay ausencias esta semana.</td></tr>
+              {empleados.filter(emp => diasMostrar.some(d => tieneAusencia(emp.id, d))).length === 0 ? (
+                <tr><td colSpan={diasMostrar.length + 1} className="text-center text-gray-400 py-8">No hay ausencias en este periodo.</td></tr>
               ) : (
-                empleados.filter(emp => dias.some(d => tieneAusencia(emp.id, d))).map(emp => (
+                empleados.filter(emp => diasMostrar.some(d => tieneAusencia(emp.id, d))).map(emp => (
                   <tr key={emp.id} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-700">{emp.nombre}</td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">{emp.departamento || '-'}</td>
-                    {dias.map((d, i) => {
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-gray-700">{emp.nombre}</p>
+                      {diasMostrar.map(d => tieneAusencia(emp.id, d)).find(a => a?.fecha_carga) && (
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          Cargado: {formatFechaCarga(diasMostrar.map(d => tieneAusencia(emp.id, d)).find(a => a?.fecha_carga)?.fecha_carga)}
+                        </p>
+                      )}
+                    </td>
+                    {diasMostrar.map((d, i) => {
                       const ausencia = tieneAusencia(emp.id, d)
                       const cat = ausencia ? getCat(ausencia.motivo) : null
                       return (
