@@ -53,10 +53,3 @@ export default function NuevaContrasena() {
     </main>
   )
 }
-```
-
----
-
-Por último necesitás configurar la URL de redirección en Supabase. Andá a **Authentication → URL Configuration** y agregá en **Redirect URLs**:
-```
-https://furlong-one.vercel.app/nueva-contrasena
