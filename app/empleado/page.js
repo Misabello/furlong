@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useCategorias } from '../../lib/useCategorias'
+import Image from 'next/image'
 
 export default function Empleado() {
   const [usuario, setUsuario] = useState(null)
@@ -110,6 +111,7 @@ export default function Empleado() {
     setLoading(false)
   }
 
+
   const getCategoriaInfo = (nombre) => categorias.find(c => c.nombre === nombre) || { emoji: '📝', color: 'bg-gray-100 text-gray-600' }
 
   const handleLogout = async () => {
@@ -128,6 +130,7 @@ export default function Empleado() {
             <p className="text-gray-500 text-sm">Registra tus ausencias</p>
           </div>
           <div className="flex gap-4 items-center">
+            <Image src="/logo.png" alt="Furlong" width={120} height={40} className="object-contain" />
             <button onClick={() => router.push('/perfil')} className="text-sm text-blue-600 hover:underline">Mi perfil</button>
             <button onClick={handleLogout} className="text-sm text-red-500 hover:underline">Cerrar sesion</button>
           </div>

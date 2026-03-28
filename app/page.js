@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -18,7 +19,7 @@ export default function Login() {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
-      setError('Email o contraseña incorrectos')
+      setError('Email o contrasena incorrectos')
       setLoading(false)
       return
     }
@@ -29,21 +30,23 @@ export default function Login() {
       .eq('id', data.user.id)
       .single()
 
-      if (usuario?.rol === 'admin') {
-        router.push('/admin')
-      } else if (usuario?.rol === 'supervisor') {
-        router.push('/supervisor')
-      } else {
-        router.push('/empleado')
-      }
+    if (usuario?.rol === 'admin') {
+      router.push('/admin')
+    } else if (usuario?.rol === 'supervisor') {
+      router.push('/supervisor')
+    } else {
+      router.push('/empleado')
+    }
     setLoading(false)
   }
 
   return (
     <main className="min-h-screen bg-gray-100 flex items-center justify-center">
       <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold text-center text-gray-800 mb-2">Furlong</h1>
-        <p className="text-center text-gray-500 mb-6">Control de Asistencias</p>
+        <div className="flex justify-center mb-6">
+          <Image src="/logo.png" alt="Furlong Incoming" width={220} height={80} className="object-contain" />
+        </div>
+        <p className="text-center text-gray-500 mb-6 text-sm">Control de Asistencias</p>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
@@ -58,7 +61,7 @@ export default function Login() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Contrasena</label>
             <input
               type="password"
               value={password}

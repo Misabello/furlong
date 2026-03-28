@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useCategorias } from '../../lib/useCategorias'
+import Image from 'next/image'
 
 export default function Admin() {
   const [usuario, setUsuario] = useState(null)
@@ -151,6 +152,7 @@ export default function Admin() {
             <p className="text-gray-500 text-sm">Hola, {usuario.nombre}</p>
           </div>
           <div className="flex gap-3 items-center">
+            <Image src="/logo.png" alt="Furlong" width={120} height={40} className="object-contain" />
             {['calendario','usuarios','departamentos','categorias','ausencias'].map(t => (
               <button key={t} onClick={() => setTab(t)} className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition ${tab === t ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}>
                 {t === 'calendario' ? '📅 Calendario' : t === 'usuarios' ? '👥 Usuarios' : t === 'departamentos' ? '🏢 Departamentos' : t === 'categorias' ? '🏷️ Categorias' : '📋 Ausencias'}
@@ -183,30 +185,36 @@ export default function Admin() {
                   </tr>
                 </thead>
                 <tbody>
-                  {empleadosFiltrados.length === 0 ? (
-                    <tr><td colSpan={7} className="text-center text-gray-400 py-8">No hay empleados.</td></tr>
-                  ) : (
-                    empleadosFiltrados.map(emp => (
-                      <tr key={emp.id} className="border-b hover:bg-gray-50">
-                        <td className="px-4 py-3 font-medium text-gray-700">{emp.nombre}</td>
-                        <td className="px-4 py-3 text-gray-400 text-xs">{emp.departamento || '-'}</td>
-                        {dias.map((d, i) => {
-                          const ausencia = tieneAusencia(emp.id, d)
-                          const cat = ausencia ? getCat(ausencia.motivo) : null
-                          return (
-                            <td key={i} className="px-4 py-3 text-center">
-                              {ausencia ? (
-                                <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${cat.color}`} title={ausencia.motivo}>{cat.emoji} {ausencia.motivo}</span>
-                              ) : (
-                                <span className="inline-block w-4 h-4 rounded-full bg-green-400 mx-auto" title="Presente" />
-                              )}
-                            </td>
-                          )
-                        })}
-                      </tr>
-                    ))
-                  )}
-                </tbody>
+  {empleadosFiltrados
+    .filter(emp => dias.some(d => tieneAusencia(emp.id, d)))
+    .length === 0 ? (
+    <tr><td colSpan={7} className="text-center text-gray-400 py-8">No hay ausencias esta semana.</td></tr>
+  ) : (
+    empleadosFiltrados
+      .filter(emp => dias.some(d => tieneAusencia(emp.id, d)))
+      .map(emp => (
+        <tr key={emp.id} className="border-b hover:bg-gray-50">
+          <td className="px-4 py-3 font-medium text-gray-700">{emp.nombre}</td>
+          <td className="px-4 py-3 text-gray-400 text-xs">{emp.departamento || '-'}</td>
+          {dias.map((d, i) => {
+            const ausencia = tieneAusencia(emp.id, d)
+            const cat = ausencia ? getCat(ausencia.motivo) : null
+            return (
+              <td key={i} className="px-4 py-3 text-center">
+                {ausencia ? (
+                  <span className={cat.color + ' inline-block px-2 py-1 rounded-full text-xs font-medium'}>
+                    {cat.emoji} {ausencia.motivo}
+                  </span>
+                ) : (
+                  <span className="text-gray-200 text-xs">—</span>
+                )}
+              </td>
+            )
+          })}
+        </tr>
+      ))
+  )}
+</tbody>
               </table>
             </div>
           </>
