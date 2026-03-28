@@ -92,7 +92,7 @@ export default function Admin() {
     return ausencias.find(a => a.empleado_id === empleadoId && a.fecha === fechaStr)
   }
 
-  const empleadosFiltrados = usuarios.filter(u => u.rol === 'empleado' && (filtroDept === 'Todos' || u.departamento === filtroDept))
+  const empleadosFiltrados = usuarios.filter(u => (u.rol === 'empleado' || u.rol === 'supervisor') && (filtroDept === 'Todos' || u.departamento === filtroDept)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
