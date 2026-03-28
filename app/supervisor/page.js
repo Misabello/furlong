@@ -37,7 +37,17 @@ export default function Supervisor() {
       const { data: sup } = await supabase.from('usuarios').select('*').eq('id', user.id).single()
       if (sup?.rol !== 'supervisor') { router.push('/empleado'); return }
       setUsuario(sup)
-      const { data: emps } = await supabase.from('usuarios').select('*').eq('supervisor_id', user.id)
+      const { data: sup } = await supabase.from('usuarios').select('*, departamentos(nombre)').eq('id', user.id).single()
+      const { data: dept } = await supabase
+      .from('departamentos')
+      .select('nombre')
+      .eq('supervisor_id', user.id)
+      .single()
+    
+    const { data: emps } = await supabase
+      .from('usuarios')
+      .select('*')
+      .eq('departamento', dept?.nombre)
       setEmpleados(emps || [])
     }
     init()
@@ -88,13 +98,12 @@ export default function Supervisor() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow px-6 py-4 mb-4 flex flex-wrap gap-2">
-          {DEPARTAMENTOS.map(d => (
-            <button key={d} onClick={() => setFiltroDept(d)} className={`px-3 py-1 rounded-full text-sm font-medium transition ${filtroDept === d ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-              {d}
-            </button>
-          ))}
-        </div>
+        <div className="bg-white rounded-xl shadow px-6 py-4 mb-4 flex items-center gap-3">
+  <span className="text-sm text-gray-500">Departamento:</span>
+  <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-600 text-white">
+    {empleados[0]?.departamento || 'Sin departamento'}
+  </span>
+</div>
 
         <div className="flex items-center justify-between bg-white rounded-xl shadow px-6 py-3 mb-4">
           <button onClick={() => setSemanaOffset(s => s - 1)} className="text-blue-600 hover:underline font-medium">Semana anterior</button>

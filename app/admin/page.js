@@ -142,6 +142,9 @@ export default function Admin() {
             <p className="text-gray-500 text-sm">Gestion completa del sistema</p>
           </div>
           <button onClick={handleLogout} className="text-sm text-red-500 hover:underline">Cerrar sesion</button>
+          <button onClick={() => router.push('/admin/calendario')} className="text-sm text-blue-600 hover:underline mr-4">
+  📅 Calendario
+</button>
         </div>
 
         {/* Tabs */}
