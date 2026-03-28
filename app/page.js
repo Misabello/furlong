@@ -29,11 +29,13 @@ export default function Login() {
       .eq('id', data.user.id)
       .single()
 
-    if (usuario?.rol === 'supervisor') {
-      router.push('/supervisor')
-    } else {
-      router.push('/empleado')
-    }
+      if (usuario?.rol === 'admin') {
+        router.push('/admin')
+      } else if (usuario?.rol === 'supervisor') {
+        router.push('/supervisor')
+      } else {
+        router.push('/empleado')
+      }
     setLoading(false)
   }
 
