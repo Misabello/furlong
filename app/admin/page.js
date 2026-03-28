@@ -71,7 +71,9 @@ export default function Admin() {
 
   useEffect(() => {
     if (usuarios.length === 0) return
-    const ids = usuarios.map(u => u.id)
+    const ids = usuarios
+      .filter(u => u.rol === 'empleado' || u.rol === 'supervisor')
+      .map(u => u.id)
     let query = supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin)
     if (filtroMotivo !== 'todos') query = query.eq('motivo', filtroMotivo)
     query.then(({ data }) => setAusencias(data || []))
@@ -92,7 +94,10 @@ export default function Admin() {
     return ausencias.find(a => a.empleado_id === empleadoId && a.fecha === fechaStr)
   }
 
-  const empleadosFiltrados = usuarios.filter(u => (u.rol === 'empleado' || u.rol === 'supervisor') && (filtroDept === 'Todos' || u.departamento === filtroDept)
+  const empleadosFiltrados = usuarios.filter(u =>
+    (u.rol === 'empleado' || u.rol === 'supervisor') &&
+    (filtroDept === 'Todos' || u.departamento === filtroDept)
+  )
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -242,6 +247,7 @@ export default function Admin() {
                       <tr key={emp.id} className="border-b hover:bg-gray-50">
                         <td className="px-4 py-3">
                           <p className="font-medium text-gray-700">{emp.nombre}</p>
+                          {emp.rol === 'supervisor' && <span className="text-xs text-purple-500">Supervisor</span>}
                           {diasMostrar.map(d => tieneAusencia(emp.id, d)).find(a => a?.fecha_carga) && (
                             <p className="text-xs text-gray-400 mt-0.5">
                               Cargado: {new Date(diasMostrar.map(d => tieneAusencia(emp.id, d)).find(a => a?.fecha_carga)?.fecha_carga).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}

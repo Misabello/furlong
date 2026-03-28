@@ -6,13 +6,18 @@ import { useRouter } from 'next/navigation'
 import { useCategorias } from '../../lib/useCategorias'
 
 export default function Reportes() {
+  const hoy = new Date()
+  const dosSemanasAdelante = new Date(hoy)
+  dosSemanasAdelante.setDate(hoy.getDate() + 14)
+  const formatDate = (d) => d.toISOString().split('T')[0]
+
   const [empleados, setEmpleados] = useState([])
   const [departamentos, setDepartamentos] = useState([])
   const [ausencias, setAusencias] = useState([])
   const [filtroDept, setFiltroDept] = useState('Todos')
   const [filtroMotivo, setFiltroMotivo] = useState('todos')
-  const [filtroDesde, setFiltroDesde] = useState('')
-  const [filtroHasta, setFiltroHasta] = useState('')
+  const [filtroDesde, setFiltroDesde] = useState(formatDate(hoy))
+  const [filtroHasta, setFiltroHasta] = useState(formatDate(dosSemanasAdelante))
   const [loading, setLoading] = useState(false)
   const [buscado, setBuscado] = useState(false)
   const { categorias } = useCategorias()
@@ -33,26 +38,12 @@ export default function Reportes() {
   }, [])
 
   const buscar = async () => {
-    if (!filtroDesde || !filtroHasta) {
-      alert('Por favor selecciona fecha desde y hasta.')
-      return
-    }
+    if (!filtroDesde || !filtroHasta) { alert('Por favor selecciona fecha desde y hasta.'); return }
     setLoading(true)
     setBuscado(true)
-
-    const ids = empleados
-      .filter(e => filtroDept === 'Todos' || e.departamento === filtroDept)
-      .map(e => e.id)
-
-    let query = supabase
-      .from('ausencias')
-      .select('*')
-      .in('empleado_id', ids)
-      .gte('fecha', filtroDesde)
-      .lte('fecha', filtroHasta)
-
+    const ids = empleados.filter(e => filtroDept === 'Todos' || e.departamento === filtroDept).map(e => e.id)
+    let query = supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', filtroDesde).lte('fecha', filtroHasta)
     if (filtroMotivo !== 'todos') query = query.eq('motivo', filtroMotivo)
-
     const { data } = await query.order('fecha', { ascending: false })
     setAusencias(data || [])
     setLoading(false)
@@ -64,6 +55,19 @@ export default function Reportes() {
     const emp = empleados.find(e => e.id === a.empleado_id)
     return filtroDept === 'Todos' || emp?.departamento === filtroDept
   })
+
+  // Agrupar por empleado y motivo
+  const resumenPorEmpleado = () => {
+    const mapa = {}
+    ausenciasFiltradas.forEach(a => {
+      const emp = empleados.find(e => e.id === a.empleado_id)
+      if (!emp) return
+      if (!mapa[emp.id]) mapa[emp.id] = { nombre: emp.nombre, departamento: emp.departamento, motivos: {} }
+      if (!mapa[emp.id].motivos[a.motivo]) mapa[emp.id].motivos[a.motivo] = 0
+      mapa[emp.id].motivos[a.motivo]++
+    })
+    return Object.values(mapa).sort((a, b) => a.nombre.localeCompare(b.nombre))
+  }
 
   const rankingEmpleados = empleados
     .filter(e => filtroDept === 'Todos' || e.departamento === filtroDept)
@@ -80,22 +84,10 @@ export default function Reportes() {
   const exportarExcel = () => {
     const filas = ausenciasFiltradas.map(a => {
       const emp = empleados.find(e => e.id === a.empleado_id)
-      return {
-        Nombre: emp?.nombre || '-',
-        Departamento: emp?.departamento || '-',
-        Fecha: new Date(a.fecha).toLocaleDateString('es-AR'),
-        Motivo: a.motivo,
-        Descripcion: a.descripcion || '-',
-        FechaCarga: a.fecha_carga ? new Date(a.fecha_carga).toLocaleDateString('es-AR') : '-'
-      }
+      return { Nombre: emp?.nombre || '-', Departamento: emp?.departamento || '-', Fecha: new Date(a.fecha).toLocaleDateString('es-AR'), Motivo: a.motivo, Descripcion: a.descripcion || '-', FechaCarga: a.fecha_carga ? new Date(a.fecha_carga).toLocaleDateString('es-AR') : '-' }
     })
-
     const headers = ['Nombre', 'Departamento', 'Fecha', 'Motivo', 'Descripcion', 'FechaCarga']
-    const csv = [
-      headers.join(','),
-      ...filas.map(f => headers.map(h => '"' + (f[h] || '') + '"').join(','))
-    ].join('\n')
-
+    const csv = [headers.join(','), ...filas.map(f => headers.map(h => '"' + (f[h] || '') + '"').join(','))].join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -116,6 +108,7 @@ export default function Reportes() {
           <button onClick={() => router.back()} className="text-sm text-blue-600 hover:underline">Volver al panel</button>
         </div>
 
+        {/* Filtros */}
         <div className="bg-white rounded-xl shadow p-4 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <div>
@@ -142,9 +135,7 @@ export default function Reportes() {
           </div>
           <div className="flex gap-3 justify-end">
             {buscado && ausenciasFiltradas.length > 0 && (
-              <button onClick={exportarExcel} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm font-medium">
-                Exportar CSV
-              </button>
+              <button onClick={exportarExcel} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm font-medium">Exportar CSV</button>
             )}
             <button onClick={buscar} disabled={loading} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium">
               {loading ? 'Buscando...' : 'Buscar'}
@@ -154,6 +145,7 @@ export default function Reportes() {
 
         {buscado && (
           <>
+            {/* Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className="bg-gray-800 text-white rounded-xl p-4 text-center shadow">
                 <p className="text-3xl font-bold">{ausenciasFiltradas.length}</p>
@@ -171,9 +163,7 @@ export default function Reportes() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div className="bg-white rounded-xl shadow p-6">
                 <h2 className="text-lg font-semibold text-gray-700 mb-4">Top 5 ausencias por empleado</h2>
-                {rankingEmpleados.length === 0 ? (
-                  <p className="text-gray-400 text-sm">Sin ausencias en este periodo.</p>
-                ) : (
+                {rankingEmpleados.length === 0 ? <p className="text-gray-400 text-sm">Sin ausencias en este periodo.</p> : (
                   <ul className="space-y-3">
                     {rankingEmpleados.map((emp, i) => (
                       <li key={emp.id} className="flex items-center gap-3">
@@ -192,12 +182,9 @@ export default function Reportes() {
                   </ul>
                 )}
               </div>
-
               <div className="bg-white rounded-xl shadow p-6">
                 <h2 className="text-lg font-semibold text-gray-700 mb-4">Ausencias por departamento</h2>
-                {statsPorDept.length === 0 ? (
-                  <p className="text-gray-400 text-sm">Sin ausencias en este periodo.</p>
-                ) : (
+                {statsPorDept.length === 0 ? <p className="text-gray-400 text-sm">Sin ausencias en este periodo.</p> : (
                   <ul className="space-y-3">
                     {statsPorDept.map(({ dept, cantidad }) => (
                       <li key={dept} className="flex items-center gap-3">
@@ -217,6 +204,55 @@ export default function Reportes() {
               </div>
             </div>
 
+            {/* Resumen agrupado por empleado */}
+            <div className="bg-white rounded-xl shadow overflow-x-auto mb-6">
+              <div className="px-6 py-4 border-b">
+                <h2 className="text-lg font-semibold text-gray-700">Resumen por empleado</h2>
+              </div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50">
+                    <th className="text-left px-4 py-3 text-gray-600 font-semibold">Empleado</th>
+                    <th className="text-left px-4 py-3 text-gray-600 font-semibold">Departamento</th>
+                    <th className="text-left px-4 py-3 text-gray-600 font-semibold">Motivo</th>
+                    <th className="text-left px-4 py-3 text-gray-600 font-semibold">Dias</th>
+                    <th className="text-left px-4 py-3 text-gray-600 font-semibold">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {resumenPorEmpleado().length === 0 ? (
+                    <tr><td colSpan={5} className="text-center text-gray-400 py-8">Sin ausencias.</td></tr>
+                  ) : (
+                    resumenPorEmpleado().map((emp, ei) => {
+                      const motivos = Object.entries(emp.motivos)
+                      const total = motivos.reduce((sum, [, dias]) => sum + dias, 0)
+                      return motivos.map(([motivo, dias], mi) => {
+                        const cat = getCat(motivo)
+                        return (
+                          <tr key={emp.nombre + motivo} className="border-b hover:bg-gray-50">
+                            {mi === 0 && (
+                              <>
+                                <td className="px-4 py-3 font-medium text-gray-700" rowSpan={motivos.length}>{emp.nombre}</td>
+                                <td className="px-4 py-3 text-gray-500 text-xs" rowSpan={motivos.length}>{emp.departamento || '-'}</td>
+                              </>
+                            )}
+                            <td className="px-4 py-3">
+                              <span className={cat.color + ' inline-block px-2 py-1 rounded-full text-xs font-medium'}>{cat.emoji} {motivo}</span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-600">{dias} dia{dias > 1 ? 's' : ''}</td>
+                            {mi === 0 && (
+                              <td className="px-4 py-3 font-bold text-gray-800" rowSpan={motivos.length}>{total} dia{total > 1 ? 's' : ''}</td>
+                            )}
+                          </tr>
+                        )
+                      })
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Detalle completo */}
             <div className="bg-white rounded-xl shadow overflow-x-auto">
               <div className="px-6 py-4 border-b flex justify-between items-center">
                 <h2 className="text-lg font-semibold text-gray-700">Detalle de ausencias</h2>
@@ -245,9 +281,7 @@ export default function Reportes() {
                           <td className="px-4 py-3 font-medium text-gray-700">{emp?.nombre || '-'}</td>
                           <td className="px-4 py-3 text-gray-500 text-xs">{emp?.departamento || '-'}</td>
                           <td className="px-4 py-3 text-gray-500">{new Date(a.fecha).toLocaleDateString('es-AR')}</td>
-                          <td className="px-4 py-3">
-                            <span className={cat.color + ' inline-block px-2 py-1 rounded-full text-xs font-medium'}>{cat.emoji} {a.motivo}</span>
-                          </td>
+                          <td className="px-4 py-3"><span className={cat.color + ' inline-block px-2 py-1 rounded-full text-xs font-medium'}>{cat.emoji} {a.motivo}</span></td>
                           <td className="px-4 py-3 text-gray-400 text-xs">{a.descripcion || '-'}</td>
                           <td className="px-4 py-3 text-gray-400 text-xs">{a.fecha_carga ? new Date(a.fecha_carga).toLocaleDateString('es-AR') : '-'}</td>
                         </tr>
