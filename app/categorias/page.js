@@ -1,4 +1,5 @@
 'use client'
+export const dynamic = 'force-dynamic'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -36,7 +37,7 @@ export default function Categorias() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/'); return }
     const { data } = await supabase.from('usuarios').select('rol').eq('id', user.id).single()
-    if (data?.rol !== 'supervisor') router.push('/empleado')
+    if (data?.rol !== 'admin') router.push('/')
   }
 
   const cargarCategorias = async () => {
@@ -57,7 +58,8 @@ export default function Categorias() {
         color: form.color,
         orden: Number(form.orden)
       }).eq('id', editando)
-      if (error) { setError('Error al actualizar.') } else { setMensaje('Categoria actualizada.'); setEditando(null); resetForm() }
+      if (error) { setError('Error al actualizar.') }
+      else { setMensaje('Categoria actualizada.'); setEditando(null); resetForm() }
     } else {
       const { error } = await supabase.from('categorias').insert({
         nombre: form.nombre,
@@ -66,7 +68,8 @@ export default function Categorias() {
         orden: Number(form.orden),
         activo: true
       })
-      if (error) { setError('Error al crear: ' + error.message) } else { setMensaje('Categoria creada.'); resetForm() }
+      if (error) { setError('Error al crear: ' + error.message) }
+      else { setMensaje('Categoria creada.'); resetForm() }
     }
     cargarCategorias()
     setLoading(false)
@@ -99,7 +102,7 @@ export default function Categorias() {
             <h1 className="text-2xl font-bold text-gray-800">Categorias de ausencia</h1>
             <p className="text-gray-500 text-sm">Alta, baja y modificacion de categorias</p>
           </div>
-          <button onClick={() => router.push('/supervisor')} className="text-sm text-blue-600 hover:underline">Volver al panel</button>
+          <button onClick={() => router.push('/admin')} className="text-sm text-blue-600 hover:underline">Volver al panel</button>
         </div>
 
         <div className="bg-white rounded-xl shadow p-6 mb-6">
