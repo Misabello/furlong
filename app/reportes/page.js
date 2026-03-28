@@ -5,10 +5,9 @@ import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useCategorias } from '../../lib/useCategorias'
 
-const DEPARTAMENTOS = ['Todos', 'MKT & PROD', 'BOOKING', 'CRUCEROS', 'USHUAIA', 'TRAFICO', 'MICE', 'ADM', 'SISTEMAS']
-
 export default function Reportes() {
   const [empleados, setEmpleados] = useState([])
+  const [departamentos, setDepartamentos] = useState([])
   const [ausencias, setAusencias] = useState([])
   const [filtroDept, setFiltroDept] = useState('Todos')
   const [filtroMotivo, setFiltroMotivo] = useState('todos')
@@ -27,6 +26,8 @@ export default function Reportes() {
       if (sup?.rol !== 'supervisor' && sup?.rol !== 'admin') { router.push('/empleado'); return }
       const { data: emps } = await supabase.from('usuarios').select('*').order('nombre')
       setEmpleados(emps || [])
+      const { data: depts } = await supabase.from('departamentos').select('nombre').order('nombre')
+      setDepartamentos(['Todos', ...(depts || []).map(d => d.nombre)])
     }
     init()
   }, [])
@@ -71,7 +72,7 @@ export default function Reportes() {
     .sort((a, b) => b.ausencias - a.ausencias)
     .slice(0, 5)
 
-  const statsPorDept = DEPARTAMENTOS.slice(1).map(dept => ({
+  const statsPorDept = departamentos.slice(1).map(dept => ({
     dept,
     cantidad: ausenciasFiltradas.filter(a => empleados.find(e => e.id === a.empleado_id)?.departamento === dept).length
   })).filter(d => d.cantidad > 0).sort((a, b) => b.cantidad - a.cantidad)
@@ -115,9 +116,8 @@ export default function Reportes() {
           <button onClick={() => router.back()} className="text-sm text-blue-600 hover:underline">Volver al panel</button>
         </div>
 
-        {/* Filtros */}
         <div className="bg-white rounded-xl shadow p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Desde</label>
               <input type="date" value={filtroDesde} onChange={e => setFiltroDesde(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -129,7 +129,7 @@ export default function Reportes() {
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Departamento</label>
               <select value={filtroDept} onChange={e => setFiltroDept(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d}</option>)}
+                {departamentos.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
             <div>
@@ -154,7 +154,6 @@ export default function Reportes() {
 
         {buscado && (
           <>
-            {/* Cards resumen */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className="bg-gray-800 text-white rounded-xl p-4 text-center shadow">
                 <p className="text-3xl font-bold">{ausenciasFiltradas.length}</p>
@@ -170,7 +169,6 @@ export default function Reportes() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              {/* Ranking empleados */}
               <div className="bg-white rounded-xl shadow p-6">
                 <h2 className="text-lg font-semibold text-gray-700 mb-4">Top 5 ausencias por empleado</h2>
                 {rankingEmpleados.length === 0 ? (
@@ -195,7 +193,6 @@ export default function Reportes() {
                 )}
               </div>
 
-              {/* Por departamento */}
               <div className="bg-white rounded-xl shadow p-6">
                 <h2 className="text-lg font-semibold text-gray-700 mb-4">Ausencias por departamento</h2>
                 {statsPorDept.length === 0 ? (
@@ -220,7 +217,6 @@ export default function Reportes() {
               </div>
             </div>
 
-            {/* Tabla detalle */}
             <div className="bg-white rounded-xl shadow overflow-x-auto">
               <div className="px-6 py-4 border-b flex justify-between items-center">
                 <h2 className="text-lg font-semibold text-gray-700">Detalle de ausencias</h2>
