@@ -39,15 +39,13 @@ export default function Empleado() {
     setAusencias(data || [])
   }
 
-  const generarFechas = (desde, hasta, incluirFinde) => {
+  const generarFechas = (desde, hasta) => {
     const fechas = []
     const current = new Date(desde)
     const end = new Date(hasta)
     while (current <= end) {
       const diaSemana = current.getDay()
-      if (incluirFinde || (diaSemana !== 0 && diaSemana !== 6)) {
-        fechas.push(current.toISOString().split('T')[0])
-      }
+      if (diaSemana !== 0 && diaSemana !== 6) fechas.push(current.toISOString().split('T')[0])
       current.setDate(current.getDate() + 1)
     }
     return fechas
@@ -55,8 +53,7 @@ export default function Empleado() {
 
   const cantidadDias = () => {
     if (!fechaDesde) return 0
-    const hasta = usarRango && fechaHasta ? fechaHasta : fechaDesde
-    return generarFechas(fechaDesde, hasta, false).length
+    return generarFechas(fechaDesde, usarRango && fechaHasta ? fechaHasta : fechaDesde).length
   }
 
   const handleSubmit = async (e) => {
@@ -64,7 +61,7 @@ export default function Empleado() {
     setLoading(true)
     setMensaje('')
     const hasta = usarRango && fechaHasta ? fechaHasta : fechaDesde
-    const fechas = generarFechas(fechaDesde, hasta, false)
+    const fechas = generarFechas(fechaDesde, hasta)
     if (fechas.length === 0) { setMensaje('El rango no incluye dias habiles.'); setLoading(false); return }
     const registros = fechas.map(f => ({ empleado_id: usuario.id, fecha: f, motivo, descripcion, fecha_carga: new Date().toISOString() }))
     const { error } = await supabase.from('ausencias').insert(registros)
@@ -81,7 +78,7 @@ export default function Empleado() {
           })
         }
       }
-      setMensaje(fechas.length > 1 ? 'Se registraron ' + fechas.length + ' dias correctamente.' : 'Ausencia registrada correctamente.')
+      setMensaje(fechas.length > 1 ? 'Se registraron ' + fechas.length + ' dias.' : 'Ausencia registrada.')
       setFechaDesde('')
       setFechaHasta('')
       setDescripcion('')
@@ -100,66 +97,70 @@ export default function Empleado() {
   if (!usuario) return <main className="min-h-screen bg-gray-100 flex items-center justify-center"><p className="text-gray-500">Cargando...</p></main>
 
   return (
-    <main className="min-h-screen bg-gray-100 p-6">
+    <main className="min-h-screen bg-gray-100 p-4">
       <div className="max-w-2xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
+
+        {/* Header mobile-friendly */}
+        <div className="flex justify-between items-center mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Hola, {usuario?.nombre}</h1>
-            <p className="text-gray-500 text-sm">Registra tus ausencias</p>
+            <h1 className="text-xl font-bold text-gray-800">Hola, {usuario?.nombre?.split(',')[0]}</h1>
+            <p className="text-gray-500 text-xs">Registra tus ausencias</p>
           </div>
-          <div className="flex items-center gap-4">
-            <Image src="/logo.png" alt="Furlong" width={120} height={40} className="object-contain" />
-            <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-500 hover:text-blue-600">❓ Ayuda</a>
-            <button onClick={() => router.push('/perfil')} className="text-sm text-blue-600 hover:underline">Mi perfil</button>
-            <button onClick={handleLogout} className="text-sm text-red-500 hover:underline">Cerrar sesion</button>
+          <div className="flex items-center gap-2">
+            <Image src="/logo.png" alt="Furlong" width={80} height={30} className="object-contain hidden sm:block" />
+            <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" className="text-xs text-gray-500 hover:text-blue-600">❓</a>
+            <button onClick={() => router.push('/perfil')} className="text-xs text-blue-600 hover:underline">Perfil</button>
+            <button onClick={handleLogout} className="text-xs text-red-500 hover:underline">Salir</button>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">Nueva ausencia</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Formulario */}
+        <div className="bg-white rounded-xl shadow p-4 mb-4">
+          <h2 className="text-base font-semibold text-gray-700 mb-3">Nueva ausencia</h2>
+          <form onSubmit={handleSubmit} className="space-y-3">
             <div className="flex items-center gap-3">
               <button type="button" onClick={() => { setUsarRango(!usarRango); setFechaHasta('') }} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${usarRango ? 'bg-blue-600' : 'bg-gray-200'}`}>
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${usarRango ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
               <span className="text-sm font-medium text-gray-700">Rango de fechas</span>
             </div>
-            <div className={`grid gap-4 ${usarRango ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            <div className={`grid gap-3 ${usarRango ? 'grid-cols-2' : 'grid-cols-1'}`}>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{usarRango ? 'Fecha desde' : 'Fecha'}</label>
-                <input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+                <label className="block text-xs font-medium text-gray-700 mb-1">{usarRango ? 'Desde' : 'Fecha'}</label>
+                <input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required />
               </div>
               {usarRango && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fecha hasta</label>
-                  <input type="date" value={fechaHasta} min={fechaDesde} onChange={e => setFechaHasta(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required={usarRango} />
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Hasta</label>
+                  <input type="date" value={fechaHasta} min={fechaDesde} onChange={e => setFechaHasta(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required={usarRango} />
                 </div>
               )}
             </div>
             {fechaDesde && (
-              <div className="bg-blue-50 rounded-lg px-4 py-2 text-sm text-blue-700 font-medium">
+              <div className="bg-blue-50 rounded-lg px-3 py-2 text-xs text-blue-700 font-medium">
                 {cantidadDias()} dia{cantidadDias() !== 1 ? 's' : ''} habil{cantidadDias() !== 1 ? 'es' : ''} seleccionado{cantidadDias() !== 1 ? 's' : ''}
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Motivo</label>
-              <select value={motivo} onChange={e => setMotivo(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <label className="block text-xs font-medium text-gray-700 mb-1">Motivo</label>
+              <select value={motivo} onChange={e => setMotivo(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 {categorias.map(c => <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Descripcion (opcional)</label>
-              <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" rows={3} placeholder="Detalle adicional..." />
+              <label className="block text-xs font-medium text-gray-700 mb-1">Descripcion (opcional)</label>
+              <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Detalle adicional..." />
             </div>
-            {mensaje && <p className={mensaje.includes('Error') ? 'text-red-500 text-sm' : 'text-green-600 text-sm'}>{mensaje}</p>}
-            <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-medium">
+            {mensaje && <p className={mensaje.includes('Error') ? 'text-red-500 text-xs' : 'text-green-600 text-xs'}>{mensaje}</p>}
+            <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700 transition font-medium text-sm">
               {loading ? 'Registrando...' : usarRango ? 'Registrar rango' : 'Registrar ausencia'}
             </button>
           </form>
         </div>
 
-        <div className="bg-white rounded-xl shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">Mis ausencias</h2>
+        {/* Historial */}
+        <div className="bg-white rounded-xl shadow p-4">
+          <h2 className="text-base font-semibold text-gray-700 mb-3">Mis ausencias</h2>
           {ausencias.length === 0 ? (
             <p className="text-gray-400 text-sm">No tenes ausencias registradas.</p>
           ) : (
@@ -176,18 +177,18 @@ export default function Empleado() {
                 i = j
               }
               return (
-                <ul className="space-y-3">
+                <ul className="space-y-2">
                   {grupos.map((g, idx) => {
                     const cat = getCategoriaInfo(g.motivo)
                     const esRango = g.dias > 1
                     return (
-                      <li key={idx} className="flex justify-between items-center border-b pb-2">
+                      <li key={idx} className="flex justify-between items-start border-b pb-2">
                         <div>
                           <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${cat.color}`}>{cat.emoji} {g.motivo}</span>
-                          {g.descripcion && <p className="text-sm text-gray-400 mt-1">{g.descripcion}</p>}
-                          {esRango && <p className="text-xs text-gray-400 mt-1">{g.dias} dias habiles</p>}
+                          {g.descripcion && <p className="text-xs text-gray-400 mt-1">{g.descripcion}</p>}
+                          {esRango && <p className="text-xs text-gray-400 mt-0.5">{g.dias} dias habiles</p>}
                         </div>
-                        <span className="text-sm text-gray-500 ml-4 text-right">
+                        <span className="text-xs text-gray-500 ml-2 text-right shrink-0">
                           {esRango ? new Date(g.fechaDesde).toLocaleDateString('es-AR') + ' al ' + new Date(g.fechaHasta).toLocaleDateString('es-AR') : new Date(g.fechaHasta).toLocaleDateString('es-AR')}
                         </span>
                       </li>

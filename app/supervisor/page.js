@@ -15,6 +15,7 @@ export default function Supervisor() {
   const [filtroDesde, setFiltroDesde] = useState('')
   const [filtroHasta, setFiltroHasta] = useState('')
   const [modoFiltro, setModoFiltro] = useState(false)
+  const [menuAbierto, setMenuAbierto] = useState(false)
   const { categorias } = useCategorias()
   const router = useRouter()
 
@@ -78,98 +79,119 @@ export default function Supervisor() {
   }
 
   const getCat = (nombre) => categorias.find(c => c.nombre === nombre) || { emoji: '📝', color: 'bg-gray-100 text-gray-600' }
+  const formatFecha = (d) => d.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })
+  const formatFechaCarga = (f) => f ? new Date(f).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/')
   }
 
-  const formatFecha = (d) => d.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })
-  const formatFechaCarga = (f) => f ? new Date(f).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''
-
   if (!usuario) return <main className="min-h-screen bg-gray-100 flex items-center justify-center"><p className="text-gray-500">Cargando...</p></main>
 
   return (
-    <main className="min-h-screen bg-gray-100 p-6">
+    <main className="min-h-screen bg-gray-100 p-4">
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
+
+        {/* Header */}
+        <div className="flex justify-between items-center mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Panel Supervisor</h1>
-            <p className="text-gray-500 text-sm">Hola, {usuario?.nombre}</p>
+            <h1 className="text-xl font-bold text-gray-800">Panel Supervisor</h1>
+            <p className="text-gray-500 text-xs">Hola, {usuario?.nombre?.split(',')[0]}</p>
           </div>
-          <div className="flex items-center gap-4">
-            <Image src="/logo.png" alt="Furlong" width={120} height={40} className="object-contain" />
-            <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-500 hover:text-blue-600">❓ Ayuda</a>
-            <button onClick={() => router.push('/perfil')} className="text-sm text-blue-600 hover:underline">Mi perfil</button>
-            <button onClick={() => router.push('/reportes')} className="text-sm text-blue-600 hover:underline">Reportes</button>
-            <button onClick={() => router.push('/usuarios')} className="text-sm text-blue-600 hover:underline">Usuarios</button>
-            <button onClick={handleLogout} className="text-sm text-red-500 hover:underline">Cerrar sesion</button>
+          <div className="flex items-center gap-2">
+            <Image src="/logo.png" alt="Furlong" width={80} height={30} className="object-contain hidden sm:block" />
+            {/* Menu desktop */}
+            <div className="hidden sm:flex items-center gap-3">
+              <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" className="text-xs text-gray-500 hover:text-blue-600">❓ Ayuda</a>
+              <button onClick={() => router.push('/perfil')} className="text-xs text-blue-600 hover:underline">Perfil</button>
+              <button onClick={() => router.push('/reportes')} className="text-xs text-blue-600 hover:underline">Reportes</button>
+              <button onClick={() => router.push('/usuarios')} className="text-xs text-blue-600 hover:underline">Usuarios</button>
+              <button onClick={handleLogout} className="text-xs text-red-500 hover:underline">Salir</button>
+            </div>
+            {/* Menu mobile hamburger */}
+            <button onClick={() => setMenuAbierto(!menuAbierto)} className="sm:hidden p-2 rounded-lg bg-white shadow text-gray-600">
+              ☰
+            </button>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow px-6 py-4 mb-4 flex items-center gap-3">
-          <span className="text-sm text-gray-500">Departamento:</span>
-          <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-600 text-white">
+        {/* Menu mobile desplegable */}
+        {menuAbierto && (
+          <div className="sm:hidden bg-white rounded-xl shadow p-4 mb-4 flex flex-col gap-3">
+            <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-500">❓ Ayuda</a>
+            <button onClick={() => { router.push('/perfil'); setMenuAbierto(false) }} className="text-sm text-blue-600 text-left">👤 Mi perfil</button>
+            <button onClick={() => { router.push('/reportes'); setMenuAbierto(false) }} className="text-sm text-blue-600 text-left">📊 Reportes</button>
+            <button onClick={() => { router.push('/usuarios'); setMenuAbierto(false) }} className="text-sm text-blue-600 text-left">👥 Usuarios</button>
+            <button onClick={handleLogout} className="text-sm text-red-500 text-left">🚪 Cerrar sesion</button>
+          </div>
+        )}
+
+        {/* Departamento */}
+        <div className="bg-white rounded-xl shadow px-4 py-3 mb-4 flex items-center gap-3">
+          <span className="text-xs text-gray-500">Departamento:</span>
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-600 text-white">
             {empleados[0]?.departamento || 'Sin departamento'}
           </span>
         </div>
 
-        <div className="bg-white rounded-xl shadow px-6 py-4 mb-4">
-          <div className="flex flex-wrap gap-4 items-end">
+        {/* Filtros */}
+        <div className="bg-white rounded-xl shadow px-4 py-3 mb-4">
+          <div className="flex flex-wrap gap-3 items-end">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Tipo de ausencia</label>
-              <select value={filtroMotivo} onChange={e => setFiltroMotivo(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <select value={filtroMotivo} onChange={e => setFiltroMotivo(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="todos">Todos</option>
                 {categorias.map(c => <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>)}
               </select>
             </div>
-            <div>
-              <button onClick={() => { setModoFiltro(!modoFiltro); setFiltroDesde(''); setFiltroHasta('') }} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${modoFiltro ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                Filtrar por fecha
-              </button>
-            </div>
+            <button onClick={() => { setModoFiltro(!modoFiltro); setFiltroDesde(''); setFiltroHasta('') }} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${modoFiltro ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+              Filtrar por fecha
+            </button>
             {modoFiltro && (
               <>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Desde</label>
-                  <input type="date" value={filtroDesde} onChange={e => setFiltroDesde(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input type="date" value={filtroDesde} onChange={e => setFiltroDesde(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Hasta</label>
-                  <input type="date" value={filtroHasta} min={filtroDesde} onChange={e => setFiltroHasta(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input type="date" value={filtroHasta} min={filtroDesde} onChange={e => setFiltroHasta(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
               </>
             )}
           </div>
         </div>
 
+        {/* Navegacion semana */}
         {!modoFiltro && (
-          <div className="flex items-center justify-between bg-white rounded-xl shadow px-6 py-3 mb-4">
-            <button onClick={() => setSemanaOffset(s => s - 1)} className="text-blue-600 hover:underline font-medium">Semana anterior</button>
-            <p className="text-gray-700 font-medium">{formatFecha(dias[0])} - {formatFecha(dias[4])}</p>
-            <button onClick={() => setSemanaOffset(s => s + 1)} className="text-blue-600 hover:underline font-medium">Semana siguiente</button>
+          <div className="flex items-center justify-between bg-white rounded-xl shadow px-4 py-3 mb-4">
+            <button onClick={() => setSemanaOffset(s => s - 1)} className="text-blue-600 text-xs font-medium">← Anterior</button>
+            <p className="text-gray-700 text-xs font-medium text-center">{formatFecha(dias[0])} - {formatFecha(dias[4])}</p>
+            <button onClick={() => setSemanaOffset(s => s + 1)} className="text-blue-600 text-xs font-medium">Siguiente →</button>
           </div>
         )}
 
+        {/* Tabla - scroll horizontal en mobile */}
         <div className="bg-white rounded-xl shadow overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs">
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="text-left px-4 py-3 text-gray-600 font-semibold">Empleado</th>
-                {diasMostrar.map((d, i) => <th key={i} className="px-4 py-3 text-gray-600 font-semibold text-center">{formatFecha(d)}</th>)}
+                <th className="text-left px-3 py-2 text-gray-600 font-semibold min-w-32">Empleado</th>
+                {diasMostrar.map((d, i) => <th key={i} className="px-2 py-2 text-gray-600 font-semibold text-center min-w-24">{formatFecha(d)}</th>)}
               </tr>
             </thead>
             <tbody>
               {empleados.filter(emp => diasMostrar.some(d => tieneAusencia(emp.id, d))).length === 0 ? (
-                <tr><td colSpan={diasMostrar.length + 1} className="text-center text-gray-400 py-8">No hay ausencias en este periodo.</td></tr>
+                <tr><td colSpan={diasMostrar.length + 1} className="text-center text-gray-400 py-8 text-sm">No hay ausencias en este periodo.</td></tr>
               ) : (
                 empleados.filter(emp => diasMostrar.some(d => tieneAusencia(emp.id, d))).map(emp => (
                   <tr key={emp.id} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-gray-700">{emp.nombre}</p>
+                    <td className="px-3 py-2">
+                      <p className="font-medium text-gray-700">{emp.nombre.split(',')[0]}</p>
                       {diasMostrar.map(d => tieneAusencia(emp.id, d)).find(a => a?.fecha_carga) && (
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          Cargado: {formatFechaCarga(diasMostrar.map(d => tieneAusencia(emp.id, d)).find(a => a?.fecha_carga)?.fecha_carga)}
+                        <p className="text-gray-400 mt-0.5" style={{fontSize: '10px'}}>
+                          {formatFechaCarga(diasMostrar.map(d => tieneAusencia(emp.id, d)).find(a => a?.fecha_carga)?.fecha_carga)}
                         </p>
                       )}
                     </td>
@@ -177,13 +199,13 @@ export default function Supervisor() {
                       const ausencia = tieneAusencia(emp.id, d)
                       const cat = ausencia ? getCat(ausencia.motivo) : null
                       return (
-                        <td key={i} className="px-4 py-3 text-center">
+                        <td key={i} className="px-2 py-2 text-center">
                           {ausencia ? (
-                            <span className={cat.color + ' inline-block px-2 py-1 rounded-full text-xs font-medium'}>
+                            <span className={cat.color + ' inline-block px-1.5 py-0.5 rounded-full font-medium'} style={{fontSize: '10px'}}>
                               {cat.emoji} {ausencia.motivo}
                             </span>
                           ) : (
-                            <span className="text-gray-200 text-xs">—</span>
+                            <span className="text-gray-200">—</span>
                           )}
                         </td>
                       )
