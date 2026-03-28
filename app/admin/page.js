@@ -275,4 +275,68 @@ export default function Admin() {
                 </thead>
                 <tbody>
                   {usuarios.length === 0 ? (
-                    <tr><td colSpan={6} className="text-center text-gray-400 py-8">No hay
+                    <tr><td colSpan={6} className="text-center text-gray-400 py-8">No hay usuarios.</td></tr>
+                  ) : (
+                    usuarios.map(u => (
+                      <tr key={u.id} className="border-b hover:bg-gray-50">
+                        <td className="px-4 py-3 font-medium text-gray-700">{u.nombre}</td>
+                        <td className="px-4 py-3 text-gray-500 text-xs">{u.email}</td>
+                        <td className="px-4 py-3 text-gray-500">{u.departamento || '-'}</td>
+                        <td className="px-4 py-3 text-gray-500">{u.fecha_ingreso ? new Date(u.fecha_ingreso).toLocaleDateString('es-AR') : '-'}</td>
+                        <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-medium ${rolColor[u.rol]}`}>{u.rol}</span></td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2">
+                            <button onClick={() => handleEditar(u)} className="text-blue-600 hover:underline text-xs">Editar</button>
+                            <button onClick={() => handleEliminar(u.id)} className="text-red-500 hover:underline text-xs">Eliminar</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {/* DEPARTAMENTOS */}
+        {tab === 'departamentos' && (
+          <div className="bg-white rounded-xl shadow overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50">
+                  <th className="text-left px-4 py-3 text-gray-600 font-semibold">Departamento</th>
+                  <th className="text-left px-4 py-3 text-gray-600 font-semibold">Supervisor asignado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {departamentos.map(d => (
+                  <tr key={d.id} className="border-b hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-700">{d.nombre}</td>
+                    <td className="px-4 py-3">
+                      <select value={d.supervisor_id || ''} onChange={e => handleEditarDept(d.id, 'supervisor_id', e.target.value || null)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Sin supervisor</option>
+                        {supervisores.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* CATEGORIAS */}
+        {tab === 'categorias' && (
+          <iframe src="/categorias" className="w-full h-screen rounded-xl shadow border-0" />
+        )}
+
+        {/* AUSENCIAS */}
+        {tab === 'ausencias' && (
+          <iframe src="/reportes" className="w-full h-screen rounded-xl shadow border-0" />
+        )}
+
+      </div>
+    </main>
+  )
+}

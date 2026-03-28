@@ -37,8 +37,9 @@ export default function Supervisor() {
       const { data: sup } = await supabase.from('usuarios').select('*').eq('id', user.id).single()
       if (sup?.rol !== 'supervisor') { router.push('/empleado'); return }
       setUsuario(sup)
-      const { data: sup } = await supabase.from('usuarios').select('*, departamentos(nombre)').eq('id', user.id).single()
-      const { data: dept } = await supabase
+      const { data: supData } = await supabase.from('departamentos').select('nombre').eq('supervisor_id', user.id).single()
+      const { data: emps } = await supabase.from('usuarios').select('*').eq('departamento', supData?.nombre)
+      setEmpleados(emps || [])
       .from('departamentos')
       .select('nombre')
       .eq('supervisor_id', user.id)
