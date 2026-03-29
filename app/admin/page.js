@@ -125,7 +125,9 @@ export default function Admin() {
     const hasta = usarRangoAus && fechaHastaAus ? fechaHastaAus : fechaDesdeAus
     const fechas = generarFechas(fechaDesdeAus, hasta)
     if (fechas.length === 0) { setMensajeAus('El rango no incluye dias habiles.'); setLoadingAus(false); return }
-    const registros = fechas.map(f => ({ empleado_id: usuario.id, fecha: f, motivo: motivoAus, descripcion: descripcionAus, fecha_carga: new Date().toISOString() }))
+    const now = new Date()
+    const bsas = new Date(now.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }))
+    const registros = fechas.map(f => ({ empleado_id: usuario.id, fecha: f, motivo: motivoAus, descripcion: descripcionAus, fecha_carga: bsas.toISOString() }))
     const { error } = await supabase.from('ausencias').insert(registros)
     if (error) { setMensajeAus('Error al registrar.') }
     else {
