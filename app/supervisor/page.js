@@ -384,17 +384,25 @@ export default function Supervisor() {
                 <p className="text-gray-400 text-sm">No tenes ausencias registradas.</p>
               ) : (() => {
                 const hoy = new Date().toISOString().split('T')[0]
+                const mapa = {}
+                misAusencias.forEach(a => {
+                  const k = `${a.motivo}|${a.descripcion || ''}`
+                  if (!mapa[k]) mapa[k] = []
+                  mapa[k].push(a)
+                })
                 const grupos = []
-                let i = 0
-                const sorted = [...misAusencias].sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
-                while (i < sorted.length) {
-                  const current = sorted[i]
-                  let j = i + 1
-                  while (j < sorted.length && sorted[j].motivo === current.motivo && sorted[j].descripcion === current.descripcion && (new Date(sorted[j - 1].fecha) - new Date(sorted[j].fecha)) <= 3 * 24 * 60 * 60 * 1000) { j++ }
-                  const grupo = sorted.slice(i, j)
-                  grupos.push({ motivo: current.motivo, descripcion: current.descripcion, fechaDesde: grupo[grupo.length - 1].fecha, fechaHasta: grupo[0].fecha, dias: grupo.length, ids: grupo.map(a => a.id) })
-                  i = j
-                }
+                Object.values(mapa).forEach(registros => {
+                  registros.sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+                  let i = 0
+                  while (i < registros.length) {
+                    let j = i + 1
+                    while (j < registros.length && (new Date(registros[j].fecha) - new Date(registros[j - 1].fecha)) <= 3 * 24 * 60 * 60 * 1000) { j++ }
+                    const grupo = registros.slice(i, j)
+                    grupos.push({ motivo: grupo[0].motivo, descripcion: grupo[0].descripcion, fechaDesde: grupo[0].fecha, fechaHasta: grupo[grupo.length - 1].fecha, dias: grupo.length, ids: grupo.map(a => a.id) })
+                    i = j
+                  }
+                })
+                grupos.sort((a, b) => new Date(b.fechaHasta) - new Date(a.fechaHasta))
                 return (
                   <ul className="space-y-2">
                     {grupos.map((g, idx) => {
