@@ -20,6 +20,8 @@ export default function Reportes() {
   const [filtroHasta, setFiltroHasta] = useState(formatDate(dosSemanasAdelante))
   const [loading, setLoading] = useState(false)
   const [buscado, setBuscado] = useState(false)
+  const [exportandoSheets, setExportandoSheets] = useState(false)
+  const [usuario, setUsuario] = useState(null)
   const { categorias } = useCategorias()
   const router = useRouter()
 
@@ -27,8 +29,9 @@ export default function Reportes() {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
-      const { data: sup } = await supabase.from('usuarios').select('rol').eq('id', user.id).single()
+      const { data: sup } = await supabase.from('usuarios').select('*').eq('id', user.id).single()
       if (sup?.rol !== 'supervisor' && sup?.rol !== 'admin') { router.push('/empleado'); return }
+      setUsuario(sup)
       const { data: emps } = await supabase.from('usuarios').select('*').order('nombre')
       setEmpleados(emps || [])
       const { data: depts } = await supabase.from('departamentos').select('nombre').order('nombre')
@@ -76,10 +79,80 @@ export default function Reportes() {
     .sort((a, b) => b.ausencias - a.ausencias)
     .slice(0, 5)
 
+  const detalleAgrupado = () => {
+    // Agrupar por empleado + motivo + descripcion
+    const mapa = {}
+    ausenciasFiltradas.forEach(a => {
+      const k = `${a.empleado_id}|${a.motivo}|${a.descripcion || ''}`
+      if (!mapa[k]) mapa[k] = []
+      mapa[k].push(a)
+    })
+
+    const resultado = []
+    Object.values(mapa).forEach(registros => {
+      // Ordenar por fecha ascendente para detectar consecutivos
+      registros.sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+      let i = 0
+      while (i < registros.length) {
+        let j = i + 1
+        while (j < registros.length &&
+          (new Date(registros[j].fecha) - new Date(registros[j - 1].fecha)) <= 3 * 24 * 60 * 60 * 1000
+        ) { j++ }
+        const grupo = registros.slice(i, j)
+        resultado.push({
+          empleado_id: grupo[0].empleado_id,
+          motivo: grupo[0].motivo,
+          descripcion: grupo[0].descripcion,
+          fechaDesde: grupo[0].fecha,
+          fechaHasta: grupo[grupo.length - 1].fecha,
+          dias: grupo.length,
+          fecha_carga: grupo[0].fecha_carga,
+        })
+        i = j
+      }
+    })
+
+    // Ordenar resultado por nombre de empleado y fecha descendente
+    return resultado.sort((a, b) => {
+      const empA = empleados.find(e => e.id === a.empleado_id)?.nombre || ''
+      const empB = empleados.find(e => e.id === b.empleado_id)?.nombre || ''
+      return empA.localeCompare(empB) || new Date(b.fechaHasta) - new Date(a.fechaHasta)
+    })
+  }
+
   const statsPorDept = departamentos.slice(1).map(dept => ({
     dept,
     cantidad: ausenciasFiltradas.filter(a => empleados.find(e => e.id === a.empleado_id)?.departamento === dept).length
   })).filter(d => d.cantidad > 0).sort((a, b) => b.cantidad - a.cantidad)
+
+  const exportarSheets = async () => {
+    setExportandoSheets(true)
+    const filas = ausenciasFiltradas.map(a => {
+      const emp = empleados.find(e => e.id === a.empleado_id)
+      return {
+        nombre: emp?.nombre || '-',
+        departamento: emp?.departamento || '-',
+        fecha: new Date(a.fecha).toLocaleDateString('es-AR'),
+        motivo: a.motivo,
+        descripcion: a.descripcion || '-',
+        fechaCarga: a.fecha_carga ? new Date(a.fecha_carga).toLocaleDateString('es-AR') : '-',
+      }
+    })
+    const res = await fetch('/api/google/sheets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: usuario?.id, filas, desde: filtroDesde, hasta: filtroHasta }),
+    })
+    const data = await res.json()
+    if (data.ok) {
+      window.open(data.url, '_blank')
+    } else if (data.reason === 'not_connected') {
+      alert('Conecta tu cuenta de Google desde tu perfil para exportar a Sheets.')
+    } else {
+      alert('Error al exportar. Intenta de nuevo.')
+    }
+    setExportandoSheets(false)
+  }
 
   const exportarExcel = () => {
     const filas = ausenciasFiltradas.map(a => {
@@ -133,9 +206,15 @@ export default function Reportes() {
               </select>
             </div>
           </div>
-          <div className="flex gap-3 justify-end">
+          <div className="flex gap-3 justify-end flex-wrap">
             {buscado && ausenciasFiltradas.length > 0 && (
-              <button onClick={exportarExcel} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm font-medium">Exportar CSV</button>
+              <>
+                <button onClick={exportarExcel} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm font-medium">Exportar CSV</button>
+                <button onClick={exportarSheets} disabled={exportandoSheets} className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition text-sm font-medium shadow-sm">
+                  <svg width="16" height="16" viewBox="0 0 48 48"><rect width="48" height="48" rx="4" fill="#0F9D58"/><path d="M14 13h20v22H14z" fill="#fff"/><path d="M18 18h12M18 22h12M18 26h8" stroke="#0F9D58" strokeWidth="2" strokeLinecap="round"/></svg>
+                  {exportandoSheets ? 'Exportando...' : 'Exportar a Sheets'}
+                </button>
+              </>
             )}
             <button onClick={buscar} disabled={loading} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium">
               {loading ? 'Buscando...' : 'Buscar'}
@@ -256,7 +335,7 @@ export default function Reportes() {
             <div className="bg-white rounded-xl shadow overflow-x-auto">
               <div className="px-6 py-4 border-b flex justify-between items-center">
                 <h2 className="text-lg font-semibold text-gray-700">Detalle de ausencias</h2>
-                <span className="text-sm text-gray-400">{ausenciasFiltradas.length} registros</span>
+                <span className="text-sm text-gray-400">{detalleAgrupado().length} registros</span>
               </div>
               <table className="w-full text-sm">
                 <thead>
@@ -264,6 +343,7 @@ export default function Reportes() {
                     <th className="text-left px-4 py-3 text-gray-600 font-semibold">Empleado</th>
                     <th className="text-left px-4 py-3 text-gray-600 font-semibold">Departamento</th>
                     <th className="text-left px-4 py-3 text-gray-600 font-semibold">Fecha</th>
+                    <th className="text-left px-4 py-3 text-gray-600 font-semibold">Dias</th>
                     <th className="text-left px-4 py-3 text-gray-600 font-semibold">Motivo</th>
                     <th className="text-left px-4 py-3 text-gray-600 font-semibold">Descripcion</th>
                     <th className="text-left px-4 py-3 text-gray-600 font-semibold">Cargado</th>
@@ -271,19 +351,25 @@ export default function Reportes() {
                 </thead>
                 <tbody>
                   {ausenciasFiltradas.length === 0 ? (
-                    <tr><td colSpan={6} className="text-center text-gray-400 py-8">Sin ausencias para los filtros seleccionados.</td></tr>
+                    <tr><td colSpan={7} className="text-center text-gray-400 py-8">Sin ausencias para los filtros seleccionados.</td></tr>
                   ) : (
-                    ausenciasFiltradas.map(a => {
-                      const emp = empleados.find(e => e.id === a.empleado_id)
-                      const cat = getCat(a.motivo)
+                    detalleAgrupado().map((g, idx) => {
+                      const emp = empleados.find(e => e.id === g.empleado_id)
+                      const cat = getCat(g.motivo)
+                      const esRango = g.dias > 1
                       return (
-                        <tr key={a.id} className="border-b hover:bg-gray-50">
+                        <tr key={idx} className="border-b hover:bg-gray-50">
                           <td className="px-4 py-3 font-medium text-gray-700">{emp?.nombre || '-'}</td>
                           <td className="px-4 py-3 text-gray-500 text-xs">{emp?.departamento || '-'}</td>
-                          <td className="px-4 py-3 text-gray-500">{new Date(a.fecha).toLocaleDateString('es-AR')}</td>
-                          <td className="px-4 py-3"><span className={cat.color + ' inline-block px-2 py-1 rounded-full text-xs font-medium'}>{cat.emoji} {a.motivo}</span></td>
-                          <td className="px-4 py-3 text-gray-400 text-xs">{a.descripcion || '-'}</td>
-                          <td className="px-4 py-3 text-gray-400 text-xs">{a.fecha_carga ? new Date(a.fecha_carga).toLocaleDateString('es-AR') : '-'}</td>
+                          <td className="px-4 py-3 text-gray-500 text-xs">
+                            {esRango
+                              ? new Date(g.fechaDesde).toLocaleDateString('es-AR') + ' al ' + new Date(g.fechaHasta).toLocaleDateString('es-AR')
+                              : new Date(g.fechaHasta).toLocaleDateString('es-AR')}
+                          </td>
+                          <td className="px-4 py-3 text-gray-500 text-xs">{g.dias} dia{g.dias > 1 ? 's' : ''}</td>
+                          <td className="px-4 py-3"><span className={cat.color + ' inline-block px-2 py-1 rounded-full text-xs font-medium'}>{cat.emoji} {g.motivo}</span></td>
+                          <td className="px-4 py-3 text-gray-400 text-xs">{g.descripcion || '-'}</td>
+                          <td className="px-4 py-3 text-gray-400 text-xs">{g.fecha_carga ? new Date(g.fecha_carga).toLocaleDateString('es-AR') : '-'}</td>
                         </tr>
                       )
                     })

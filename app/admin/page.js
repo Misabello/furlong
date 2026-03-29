@@ -32,6 +32,12 @@ export default function Admin() {
   const [mensajeAus, setMensajeAus] = useState('')
   const [loadingAus, setLoadingAus] = useState(false)
   const [misAusencias, setMisAusencias] = useState([])
+  const [editandoAusIdx, setEditandoAusIdx] = useState(null)
+  const [editAusMotivo, setEditAusMotivo] = useState('')
+  const [editAusDescripcion, setEditAusDescripcion] = useState('')
+  const [editAusFechaDesde, setEditAusFechaDesde] = useState('')
+  const [editAusFechaHasta, setEditAusFechaHasta] = useState('')
+  const [editAusUsarRango, setEditAusUsarRango] = useState(false)
   const { categorias } = useCategorias()
   const router = useRouter()
 
@@ -135,6 +141,12 @@ export default function Admin() {
     const hasta = usarRangoAus && fechaHastaAus ? fechaHastaAus : fechaDesdeAus
     const fechas = generarFechas(fechaDesdeAus, hasta)
     if (fechas.length === 0) { setMensajeAus('El rango no incluye dias habiles.'); setLoadingAus(false); return }
+    const { data: conflictos } = await supabase.from('ausencias').select('fecha').eq('empleado_id', usuario.id).in('fecha', fechas)
+    if (conflictos?.length > 0) {
+      alert('Ya tenes ausencias registradas en:\n' + conflictos.map(c => new Date(c.fecha).toLocaleDateString('es-AR')).join('\n'))
+      setLoadingAus(false)
+      return
+    }
     const bsas = getBsasTime()
     const registros = fechas.map(f => ({ empleado_id: usuario.id, fecha: f, motivo: motivoAus, descripcion: descripcionAus, fecha_carga: bsas.toISOString() }))
     const { error } = await supabase.from('ausencias').insert(registros)
@@ -212,6 +224,31 @@ export default function Admin() {
     router.push('/')
   }
 
+  const handleEliminarAus = async (ids) => {
+    if (!confirm('¿Eliminar esta ausencia?')) return
+    await supabase.from('ausencias').delete().in('id', ids)
+    cargarMisAusencias(usuario.id)
+  }
+
+  const handleGuardarEdicionAus = async (ids) => {
+    const hasta = editAusUsarRango && editAusFechaHasta ? editAusFechaHasta : editAusFechaDesde
+    const nuevasFechas = generarFechas(editAusFechaDesde, hasta)
+    if (nuevasFechas.length === 0) return
+    const { data: conflictos } = await supabase.from('ausencias').select('fecha, id').eq('empleado_id', usuario.id).in('fecha', nuevasFechas)
+    const reales = conflictos?.filter(c => !ids.includes(c.id)) || []
+    if (reales.length > 0) {
+      alert('Ya tenes ausencias en: ' + reales.map(c => new Date(c.fecha).toLocaleDateString('es-AR')).join(', '))
+      return
+    }
+    const bsas = getBsasTime()
+    await supabase.from('ausencias').delete().in('id', ids)
+    await supabase.from('ausencias').insert(
+      nuevasFechas.map(f => ({ empleado_id: usuario.id, fecha: f, motivo: editAusMotivo, descripcion: editAusDescripcion, fecha_carga: bsas.toISOString() }))
+    )
+    setEditandoAusIdx(null)
+    cargarMisAusencias(usuario.id)
+  }
+
   const supervisores = usuarios.filter(u => u.rol === 'supervisor')
   const rolColor = { admin: 'bg-red-100 text-red-700', supervisor: 'bg-purple-100 text-purple-700', empleado: 'bg-blue-100 text-blue-700' }
   const deptos = ['Todos', ...departamentos.map(d => d.nombre)]
@@ -219,19 +256,19 @@ export default function Admin() {
   if (!usuario) return <main className="min-h-screen bg-gray-100 flex items-center justify-center"><p className="text-gray-500">Cargando...</p></main>
 
   return (
-    <main className="min-h-screen bg-gray-100 p-4">
+    <main className="min-h-screen bg-gray-100 p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
 
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center mb-4 md:mb-6">
           <div>
-            <h1 className="text-xl font-bold text-gray-800">Panel Admin</h1>
-            <p className="text-gray-500 text-xs">Hola, {usuario.nombre?.split(',')[0]}</p>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-800">Panel Admin</h1>
+            <p className="text-gray-500 text-xs md:text-sm">Hola, {usuario.nombre?.split(',')[0]}</p>
           </div>
           <div className="flex items-center gap-2">
             <Image src="/logo.png" alt="Furlong" width={80} height={30} className="object-contain hidden sm:block" />
             <button onClick={() => setMenuAbierto(!menuAbierto)} className="sm:hidden p-2 rounded-lg bg-white shadow text-gray-600">☰</button>
-            <div className="hidden sm:flex items-center gap-2">
-              <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" title="Ayuda" className="text-xs text-gray-500 hover:text-blue-600">❓</a>
+            <div className="hidden sm:flex items-center gap-1.5 md:gap-2">
+              <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" title="Ayuda" className="text-xs text-gray-500 hover:text-blue-600 px-1">❓</a>
               {[
                 { key: 'calendario', icon: '📅', label: 'Calendario' },
                 { key: 'misausencias', icon: '📋', label: 'Mis ausencias' },
@@ -240,11 +277,19 @@ export default function Admin() {
                 { key: 'categorias', icon: '🏷️', label: 'Categorias' },
                 { key: 'ausencias', icon: '📊', label: 'Reportes' },
               ].map(t => (
-                <button key={t.key} onClick={() => setTab(t.key)} title={t.label} className={`px-2 py-1.5 rounded-lg text-xs font-medium transition ${tab === t.key ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}>
-                  {t.icon}
+                <button key={t.key} onClick={() => setTab(t.key)} className={`flex items-center gap-1.5 px-2 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition ${tab === t.key ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-100 shadow-sm'}`}>
+                  <span>{t.icon}</span>
+                  <span className="hidden md:inline">{t.label}</span>
                 </button>
               ))}
-              <button onClick={handleLogout} title="Cerrar sesion" className="text-xs text-red-500 hover:underline">🚪</button>
+              <button onClick={() => router.push('/perfil')} className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium bg-white text-blue-600 hover:bg-gray-100 shadow-sm transition">
+                <span>👤</span>
+                <span className="hidden md:inline">Mi perfil</span>
+              </button>
+              <button onClick={handleLogout} className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium bg-white text-red-500 hover:bg-gray-100 shadow-sm transition">
+                <span>🚪</span>
+                <span className="hidden md:inline">Salir</span>
+              </button>
             </div>
           </div>
         </div>
@@ -262,6 +307,7 @@ export default function Admin() {
             ].map(t => (
               <button key={t.key} onClick={() => { setTab(t.key); setMenuAbierto(false) }} className={`text-sm text-left px-3 py-2 rounded-lg ${tab === t.key ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-600'}`}>{t.label}</button>
             ))}
+            <button onClick={() => { router.push('/perfil'); setMenuAbierto(false) }} className="text-sm text-blue-600 text-left">👤 Mi perfil</button>
             <button onClick={handleLogout} className="text-sm text-red-500 text-left">🚪 Cerrar sesion</button>
           </div>
         )}
@@ -405,19 +451,83 @@ export default function Admin() {
               <h2 className="text-base font-semibold text-gray-700 mb-3">Mis ausencias</h2>
               {misAusencias.length === 0 ? (
                 <p className="text-gray-400 text-sm">No tenes ausencias registradas.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {misAusencias.map(a => {
-                    const cat = getCat(a.motivo)
-                    return (
-                      <li key={a.id} className="flex justify-between items-start border-b pb-2">
-                        <span className={cat.color + ' inline-block px-2 py-1 rounded-full text-xs font-medium'}>{cat.emoji} {a.motivo}</span>
-                        <span className="text-xs text-gray-500">{new Date(a.fecha).toLocaleDateString('es-AR')}</span>
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
+              ) : (() => {
+                const hoy = new Date().toISOString().split('T')[0]
+                const grupos = []
+                let i = 0
+                const sorted = [...misAusencias].sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+                while (i < sorted.length) {
+                  const current = sorted[i]
+                  let j = i + 1
+                  while (j < sorted.length && sorted[j].motivo === current.motivo && sorted[j].descripcion === current.descripcion && (new Date(sorted[j - 1].fecha) - new Date(sorted[j].fecha)) <= 3 * 24 * 60 * 60 * 1000) { j++ }
+                  const grupo = sorted.slice(i, j)
+                  grupos.push({ motivo: current.motivo, descripcion: current.descripcion, fechaDesde: grupo[grupo.length - 1].fecha, fechaHasta: grupo[0].fecha, dias: grupo.length, ids: grupo.map(a => a.id) })
+                  i = j
+                }
+                return (
+                  <ul className="space-y-2">
+                    {grupos.map((g, idx) => {
+                      const cat = getCat(g.motivo)
+                      const esRango = g.dias > 1
+                      const esFutura = g.fechaHasta > hoy
+                      const editando = editandoAusIdx === idx
+                      return (
+                        <li key={idx} className="border-b pb-3">
+                          {editando ? (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <button type="button" onClick={() => { setEditAusUsarRango(!editAusUsarRango); setEditAusFechaHasta(editAusFechaDesde) }} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${editAusUsarRango ? 'bg-blue-600' : 'bg-gray-200'}`}>
+                                  <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${editAusUsarRango ? 'translate-x-5' : 'translate-x-1'}`} />
+                                </button>
+                                <span className="text-xs text-gray-600">Rango de fechas</span>
+                              </div>
+                              <div className={`grid gap-2 ${editAusUsarRango ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                <div>
+                                  <label className="block text-xs text-gray-500 mb-1">{editAusUsarRango ? 'Desde' : 'Fecha'}</label>
+                                  <input type="date" value={editAusFechaDesde} onChange={e => setEditAusFechaDesde(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                </div>
+                                {editAusUsarRango && (
+                                  <div>
+                                    <label className="block text-xs text-gray-500 mb-1">Hasta</label>
+                                    <input type="date" value={editAusFechaHasta} min={editAusFechaDesde} onChange={e => setEditAusFechaHasta(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                  </div>
+                                )}
+                              </div>
+                              <select value={editAusMotivo} onChange={e => setEditAusMotivo(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                {categorias.map(c => <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>)}
+                              </select>
+                              <textarea value={editAusDescripcion} onChange={e => setEditAusDescripcion(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Descripcion (opcional)" />
+                              <div className="flex gap-2 justify-end">
+                                <button onClick={() => setEditandoAusIdx(null)} className="text-xs text-gray-500 hover:underline">Cancelar</button>
+                                <button onClick={() => handleGuardarEdicionAus(g.ids)} className="text-xs bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700">Guardar</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <span className={cat.color + ' inline-block px-2 py-1 rounded-full text-xs font-medium'}>{cat.emoji} {g.motivo}</span>
+                                {g.descripcion && <p className="text-xs text-gray-400 mt-1">{g.descripcion}</p>}
+                                {esRango && <p className="text-xs text-gray-400 mt-0.5">{g.dias} dias habiles</p>}
+                              </div>
+                              <div className="flex items-center gap-2 ml-2 shrink-0">
+                                <span className="text-xs text-gray-500 text-right">
+                                  {esRango ? new Date(g.fechaDesde).toLocaleDateString('es-AR') + ' al ' + new Date(g.fechaHasta).toLocaleDateString('es-AR') : new Date(g.fechaHasta).toLocaleDateString('es-AR')}
+                                </span>
+                                {esFutura && (
+                                  <>
+                                    <button onClick={() => { setEditandoAusIdx(idx); setEditAusMotivo(g.motivo); setEditAusDescripcion(g.descripcion || ''); setEditAusFechaDesde(g.fechaDesde); setEditAusFechaHasta(g.fechaHasta); setEditAusUsarRango(g.dias > 1) }} className="text-xs text-blue-500 hover:text-blue-700" title="Editar">✏️</button>
+                                    <button onClick={() => handleEliminarAus(g.ids)} className="text-xs text-red-400 hover:text-red-600" title="Eliminar">🗑️</button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )
+              })()}
             </div>
           </div>
         )}

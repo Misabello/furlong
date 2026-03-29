@@ -13,13 +13,15 @@ export async function POST(request) {
 
     if (error) return Response.json({ ok: false, error: error.message }, { status: 400 })
 
-    await supabaseAdmin.from('usuarios').update({
+    await supabaseAdmin.from('usuarios').upsert({
+      id: data.user.id,
+      email,
       nombre,
       rol,
       departamento,
       fecha_ingreso: fecha_ingreso || null,
       supervisor_id: supervisor_id || null
-    }).eq('id', data.user.id)
+    })
 
     return Response.json({ ok: true })
   } catch (error) {
