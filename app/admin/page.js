@@ -120,10 +120,17 @@ export default function Admin() {
 
   const generarFechas = (desde, hasta) => {
     const fechas = []
-    const current = new Date(desde)
-    const end = new Date(hasta)
+    const [yd, md, dd] = desde.split('-').map(Number)
+    const [yh, mh, dh] = hasta.split('-').map(Number)
+    const current = new Date(yd, md - 1, dd)
+    const end = new Date(yh, mh - 1, dh)
     while (current <= end) {
-      if (current.getDay() !== 0 && current.getDay() !== 6) fechas.push(current.toISOString().split('T')[0])
+      if (current.getDay() !== 0 && current.getDay() !== 6) {
+        const y = current.getFullYear()
+        const m = String(current.getMonth() + 1).padStart(2, '0')
+        const d = String(current.getDate()).padStart(2, '0')
+        fechas.push(`${y}-${m}-${d}`)
+      }
       current.setDate(current.getDate() + 1)
     }
     return fechas
