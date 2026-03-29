@@ -52,12 +52,10 @@ export default function Empleado() {
     const current = new Date(yd, md - 1, dd)
     const end = new Date(yh, mh - 1, dh)
     while (current <= end) {
-      if (current.getDay() !== 0 && current.getDay() !== 6) {
-        const y = current.getFullYear()
-        const m = String(current.getMonth() + 1).padStart(2, '0')
-        const d = String(current.getDate()).padStart(2, '0')
-        fechas.push(`${y}-${m}-${d}`)
-      }
+      const y = current.getFullYear()
+      const m = String(current.getMonth() + 1).padStart(2, '0')
+      const d = String(current.getDate()).padStart(2, '0')
+      fechas.push(`${y}-${m}-${d}`)
       current.setDate(current.getDate() + 1)
     }
     return fechas
@@ -80,7 +78,7 @@ export default function Empleado() {
     setMensaje('')
     const hasta = usarRango && fechaHasta ? fechaHasta : fechaDesde
     const fechas = generarFechas(fechaDesde, hasta)
-    if (fechas.length === 0) { setMensaje('El rango no incluye dias habiles.'); setLoading(false); return }
+    if (fechas.length === 0) { setLoading(false); return }
     const bsas = getBsasTime()
     const registros = fechas.map(f => ({ empleado_id: usuario.id, fecha: f, motivo, descripcion, fecha_carga: bsas.toISOString() }))
     const { data: conflictos } = await supabase.from('ausencias').select('fecha').eq('empleado_id', usuario.id).in('fecha', fechas)
@@ -200,7 +198,7 @@ export default function Empleado() {
             </div>
             {fechaDesde && (
               <div className="bg-blue-50 rounded-lg px-3 py-2 text-xs text-blue-700 font-medium">
-                {cantidadDias()} dia{cantidadDias() !== 1 ? 's' : ''} habil{cantidadDias() !== 1 ? 'es' : ''} seleccionado{cantidadDias() !== 1 ? 's' : ''}
+                {cantidadDias()} dia{cantidadDias() !== 1 ? 's' : ''} seleccionado{cantidadDias() !== 1 ? 's' : ''}
               </div>
             )}
             <div>
@@ -289,7 +287,7 @@ export default function Empleado() {
                             <div>
                               <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${cat.color}`}>{cat.emoji} {g.motivo}</span>
                               {g.descripcion && <p className="text-xs text-gray-400 mt-1">{g.descripcion}</p>}
-                              {esRango && <p className="text-xs text-gray-400 mt-0.5">{g.dias} dias habiles</p>}
+                              {esRango && <p className="text-xs text-gray-400 mt-0.5">{g.dias} dias</p>}
                             </div>
                             <div className="flex items-center gap-2 ml-2 shrink-0">
                               <span className="text-xs text-gray-500 text-right">

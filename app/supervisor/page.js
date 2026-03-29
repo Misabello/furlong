@@ -111,12 +111,10 @@ export default function Supervisor() {
     const current = new Date(yd, md - 1, dd)
     const end = new Date(yh, mh - 1, dh)
     while (current <= end) {
-      if (current.getDay() !== 0 && current.getDay() !== 6) {
-        const y = current.getFullYear()
-        const m = String(current.getMonth() + 1).padStart(2, '0')
-        const d = String(current.getDate()).padStart(2, '0')
-        fechas.push(`${y}-${m}-${d}`)
-      }
+      const y = current.getFullYear()
+      const m = String(current.getMonth() + 1).padStart(2, '0')
+      const d = String(current.getDate()).padStart(2, '0')
+      fechas.push(`${y}-${m}-${d}`)
       current.setDate(current.getDate() + 1)
     }
     return fechas
@@ -133,7 +131,7 @@ export default function Supervisor() {
     setMensajeAus('')
     const hasta = usarRangoAus && fechaHastaAus ? fechaHastaAus : fechaDesdeAus
     const fechas = generarFechas(fechaDesdeAus, hasta)
-    if (fechas.length === 0) { setMensajeAus('El rango no incluye dias habiles.'); setLoadingAus(false); return }
+    if (fechas.length === 0) { setLoadingAus(false); return }
     const { data: conflictos } = await supabase.from('ausencias').select('fecha').eq('empleado_id', usuario.id).in('fecha', fechas)
     if (conflictos?.length > 0) {
       setMensajeAus('Ya tenes ausencias registradas en: ' + conflictos.map(c => new Date(c.fecha + 'T12:00:00').toLocaleDateString('es-AR')).join(', '))
@@ -150,6 +148,11 @@ export default function Supervisor() {
       setFechaHastaAus('')
       setDescripcionAus('')
       cargarMisAusencias(usuario.id)
+      fetch('/api/google/evento', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: usuario.id, fechaDesde: fechaDesdeAus, fechaHasta: hasta, motivo: motivoAus, descripcion: descripcionAus }),
+      }).catch(() => {})
     }
     setLoadingAus(false)
   }
@@ -366,7 +369,7 @@ export default function Supervisor() {
                 </div>
                 {fechaDesdeAus && (
                   <div className="bg-blue-50 rounded-lg px-3 py-2 text-xs text-blue-700 font-medium">
-                    {cantidadDiasAus()} dia{cantidadDiasAus() !== 1 ? 's' : ''} habil{cantidadDiasAus() !== 1 ? 'es' : ''} seleccionado{cantidadDiasAus() !== 1 ? 's' : ''}
+                    {cantidadDiasAus()} dia{cantidadDiasAus() !== 1 ? 's' : ''} seleccionado{cantidadDiasAus() !== 1 ? 's' : ''}
                   </div>
                 )}
                 <div>
@@ -453,7 +456,7 @@ export default function Supervisor() {
                               <div>
                                 <span className={cat.color + ' inline-block px-2 py-1 rounded-full text-xs font-medium'}>{cat.emoji} {g.motivo}</span>
                                 {g.descripcion && <p className="text-xs text-gray-400 mt-1">{g.descripcion}</p>}
-                                {esRango && <p className="text-xs text-gray-400 mt-0.5">{g.dias} dias habiles</p>}
+                                {esRango && <p className="text-xs text-gray-400 mt-0.5">{g.dias} dias</p>}
                               </div>
                               <div className="flex items-center gap-2 ml-2 shrink-0">
                                 <span className="text-xs text-gray-500 text-right">

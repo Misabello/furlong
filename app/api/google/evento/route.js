@@ -62,6 +62,10 @@ export async function POST(request) {
     body: JSON.stringify(event),
   })
 
-  if (!res.ok) return Response.json({ ok: false, reason: 'calendar_api_error' })
+  if (!res.ok) {
+    const errorBody = await res.json()
+    console.error('Calendar API error:', JSON.stringify(errorBody))
+    return Response.json({ ok: false, reason: 'calendar_api_error', detail: errorBody })
+  }
   return Response.json({ ok: true })
 }
