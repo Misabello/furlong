@@ -228,9 +228,16 @@ export default function Admin() {
             <button onClick={() => setMenuAbierto(!menuAbierto)} className="sm:hidden p-2 rounded-lg bg-white shadow text-gray-600">☰</button>
             <div className="hidden sm:flex items-center gap-2">
               <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" className="text-xs text-gray-500 hover:text-blue-600">❓</a>
-              {['calendario','misausencias','usuarios','departamentos','categorias','ausencias'].map(t => (
-                <button key={t} onClick={() => setTab(t)} className={`px-2 py-1.5 rounded-lg text-xs font-medium transition ${tab === t ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}>
-                  {t === 'calendario' ? '📅' : t === 'misausencias' ? '📋 Mis ausencias' : t === 'usuarios' ? '👥' : t === 'departamentos' ? '🏢' : t === 'categorias' ? '🏷️' : '📊'}
+              {[
+                { key: 'calendario', icon: '📅', label: 'Calendario' },
+                { key: 'misausencias', icon: '📋', label: 'Mis ausencias' },
+                { key: 'usuarios', icon: '👥', label: 'Usuarios' },
+                { key: 'departamentos', icon: '🏢', label: 'Departamentos' },
+                { key: 'categorias', icon: '🏷️', label: 'Categorias' },
+                { key: 'ausencias', icon: '📊', label: 'Reportes' },
+              ].map(t => (
+                <button key={t.key} onClick={() => setTab(t.key)} title={t.label} className={`px-2 py-1.5 rounded-lg text-xs font-medium transition ${tab === t.key ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}>
+                  {t.icon}
                 </button>
               ))}
               <button onClick={handleLogout} className="text-xs text-red-500 hover:underline">Salir</button>

@@ -110,9 +110,9 @@ export default function Empleado() {
           </div>
           <div className="flex items-center gap-2">
             <Image src="/logo.png" alt="Furlong" width={80} height={30} className="object-contain hidden sm:block" />
-            <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" className="text-xs text-gray-500 hover:text-blue-600">❓</a>
-            <button onClick={() => router.push('/perfil')} className="text-xs text-blue-600 hover:underline">Perfil</button>
-            <button onClick={handleLogout} className="text-xs text-red-500 hover:underline">Salir</button>
+            <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" title="Ayuda" className="text-xs text-gray-500 hover:text-blue-600">❓</a>
+            <button onClick={() => router.push('/perfil')} title="Mi perfil" className="text-xs text-blue-600 hover:underline">👤</button>
+            <button onClick={handleLogout} title="Cerrar sesion" className="text-xs text-red-500 hover:underline">🚪</button>
           </div>
         </div>
 

@@ -169,12 +169,12 @@ export default function Supervisor() {
             <button onClick={() => setMenuAbierto(!menuAbierto)} className="sm:hidden p-2 rounded-lg bg-white shadow text-gray-600">☰</button>
             <div className="hidden sm:flex items-center gap-2">
               <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" className="text-xs text-gray-500 hover:text-blue-600">❓</a>
-              <button onClick={() => setTab('calendario')} className={`text-xs px-2 py-1.5 rounded-lg transition ${tab === 'calendario' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:underline'}`}>📅 Calendario</button>
-              <button onClick={() => setTab('misausencias')} className={`text-xs px-2 py-1.5 rounded-lg transition ${tab === 'misausencias' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:underline'}`}>📋 Mis ausencias</button>
-              <button onClick={() => router.push('/perfil')} className="text-xs text-blue-600 hover:underline">Perfil</button>
-              <button onClick={() => router.push('/reportes')} className="text-xs text-blue-600 hover:underline">Reportes</button>
-              <button onClick={() => router.push('/usuarios')} className="text-xs text-blue-600 hover:underline">Usuarios</button>
-              <button onClick={handleLogout} className="text-xs text-red-500 hover:underline">Salir</button>
+              <button onClick={() => setTab('calendario')} title="Calendario" className={`text-xs px-2 py-1.5 rounded-lg transition ${tab === 'calendario' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:underline'}`}>📅</button>
+              <button onClick={() => setTab('misausencias')} title="Mis ausencias" className={`text-xs px-2 py-1.5 rounded-lg transition ${tab === 'misausencias' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:underline'}`}>📋</button>
+              <button onClick={() => router.push('/perfil')} title="Mi perfil" className="text-xs text-blue-600 hover:underline">👤</button>
+              <button onClick={() => router.push('/reportes')} title="Reportes" className="text-xs text-blue-600 hover:underline">📊</button>
+              <button onClick={() => router.push('/usuarios')} title="Usuarios" className="text-xs text-blue-600 hover:underline">👥</button>
+              <button onClick={handleLogout} title="Cerrar sesion" className="text-xs text-red-500 hover:underline">🚪</button>
             </div>
           </div>
         </div>
