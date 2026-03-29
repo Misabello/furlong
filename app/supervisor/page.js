@@ -129,7 +129,7 @@ export default function Supervisor() {
     if (fechas.length === 0) { setMensajeAus('El rango no incluye dias habiles.'); setLoadingAus(false); return }
     const { data: conflictos } = await supabase.from('ausencias').select('fecha').eq('empleado_id', usuario.id).in('fecha', fechas)
     if (conflictos?.length > 0) {
-      alert('Ya tenes ausencias registradas en:\n' + conflictos.map(c => new Date(c.fecha).toLocaleDateString('es-AR')).join('\n'))
+      setMensajeAus('Ya tenes ausencias registradas en: ' + conflictos.map(c => new Date(c.fecha + 'T12:00:00').toLocaleDateString('es-AR')).join(', '))
       setLoadingAus(false)
       return
     }
@@ -177,7 +177,7 @@ export default function Supervisor() {
     const { data: conflictos } = await supabase.from('ausencias').select('fecha, id').eq('empleado_id', usuario.id).in('fecha', nuevasFechas)
     const reales = conflictos?.filter(c => !ids.includes(c.id)) || []
     if (reales.length > 0) {
-      alert('Ya tenes ausencias en: ' + reales.map(c => new Date(c.fecha).toLocaleDateString('es-AR')).join(', '))
+      setMensajeAus('Ya tenes ausencias en: ' + reales.map(c => new Date(c.fecha + 'T12:00:00').toLocaleDateString('es-AR')).join(', '))
       return
     }
     const bsas = getBsasTime()
@@ -372,7 +372,7 @@ export default function Supervisor() {
                   <label className="block text-xs font-medium text-gray-700 mb-1">Descripcion (opcional)</label>
                   <textarea value={descripcionAus} onChange={e => setDescripcionAus(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Detalle adicional..." />
                 </div>
-                {mensajeAus && <p className={mensajeAus.includes('Error') ? 'text-red-500 text-xs' : 'text-green-600 text-xs'}>{mensajeAus}</p>}
+                {mensajeAus && <p className={`text-sm font-medium px-3 py-2 rounded-lg ${mensajeAus.includes('Error') || mensajeAus.includes('Ya tenes') ? 'text-red-700 bg-red-50 border border-red-200' : 'text-green-700 bg-green-50 border border-green-200'}`}>{mensajeAus}</p>}
                 <button type="submit" disabled={loadingAus} className="w-full bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700 transition font-medium text-sm">
                   {loadingAus ? 'Registrando...' : usarRangoAus ? 'Registrar rango' : 'Registrar ausencia'}
                 </button>
@@ -450,7 +450,7 @@ export default function Supervisor() {
                               </div>
                               <div className="flex items-center gap-2 ml-2 shrink-0">
                                 <span className="text-xs text-gray-500 text-right">
-                                  {esRango ? new Date(g.fechaDesde).toLocaleDateString('es-AR') + ' al ' + new Date(g.fechaHasta).toLocaleDateString('es-AR') : new Date(g.fechaHasta).toLocaleDateString('es-AR')}
+                                  {esRango ? new Date(g.fechaDesde + 'T12:00:00').toLocaleDateString('es-AR') + ' al ' + new Date(g.fechaHasta + 'T12:00:00').toLocaleDateString('es-AR') : new Date(g.fechaHasta + 'T12:00:00').toLocaleDateString('es-AR')}
                                 </span>
                                 {esFutura && (
                                   <>

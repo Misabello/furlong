@@ -78,7 +78,7 @@ export default function Empleado() {
     const registros = fechas.map(f => ({ empleado_id: usuario.id, fecha: f, motivo, descripcion, fecha_carga: bsas.toISOString() }))
     const { data: conflictos } = await supabase.from('ausencias').select('fecha').eq('empleado_id', usuario.id).in('fecha', fechas)
     if (conflictos?.length > 0) {
-      alert('Ya tenes ausencias registradas en:\n' + conflictos.map(c => new Date(c.fecha).toLocaleDateString('es-AR')).join('\n'))
+      setMensaje('Ya tenes ausencias registradas en: ' + conflictos.map(c => new Date(c.fecha + 'T12:00:00').toLocaleDateString('es-AR')).join(', '))
       setLoading(false)
       return
     }
@@ -126,7 +126,7 @@ export default function Empleado() {
     const { data: conflictos } = await supabase.from('ausencias').select('fecha, id').eq('empleado_id', usuario.id).in('fecha', nuevasFechas)
     const reales = conflictos?.filter(c => !ids.includes(c.id)) || []
     if (reales.length > 0) {
-      alert('Ya tenes ausencias en: ' + reales.map(c => new Date(c.fecha).toLocaleDateString('es-AR')).join(', '))
+      setMensaje('Ya tenes ausencias en: ' + reales.map(c => new Date(c.fecha + 'T12:00:00').toLocaleDateString('es-AR')).join(', '))
       return
     }
     const bsas = getBsasTime()
@@ -206,7 +206,7 @@ export default function Empleado() {
               <label className="block text-xs font-medium text-gray-700 mb-1">Descripcion (opcional)</label>
               <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Detalle adicional..." />
             </div>
-            {mensaje && <p className={mensaje.includes('Error') ? 'text-red-500 text-xs' : 'text-green-600 text-xs'}>{mensaje}</p>}
+            {mensaje && <p className={`text-sm font-medium px-3 py-2 rounded-lg ${mensaje.includes('Error') || mensaje.includes('Ya tenes') ? 'text-red-700 bg-red-50 border border-red-200' : 'text-green-700 bg-green-50 border border-green-200'}`}>{mensaje}</p>}
             <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700 transition font-medium text-sm">
               {loading ? 'Registrando...' : usarRango ? 'Registrar rango' : 'Registrar ausencia'}
             </button>
@@ -286,7 +286,7 @@ export default function Empleado() {
                             </div>
                             <div className="flex items-center gap-2 ml-2 shrink-0">
                               <span className="text-xs text-gray-500 text-right">
-                                {esRango ? new Date(g.fechaDesde).toLocaleDateString('es-AR') + ' al ' + new Date(g.fechaHasta).toLocaleDateString('es-AR') : new Date(g.fechaHasta).toLocaleDateString('es-AR')}
+                                {esRango ? new Date(g.fechaDesde + 'T12:00:00').toLocaleDateString('es-AR') + ' al ' + new Date(g.fechaHasta + 'T12:00:00').toLocaleDateString('es-AR') : new Date(g.fechaHasta + 'T12:00:00').toLocaleDateString('es-AR')}
                               </span>
                               {esFutura && (
                                 <>

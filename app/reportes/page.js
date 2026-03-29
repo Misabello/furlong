@@ -132,7 +132,7 @@ export default function Reportes() {
       return {
         nombre: emp?.nombre || '-',
         departamento: emp?.departamento || '-',
-        fecha: new Date(a.fecha).toLocaleDateString('es-AR'),
+        fecha: new Date(a.fecha + 'T12:00:00').toLocaleDateString('es-AR'),
         motivo: a.motivo,
         descripcion: a.descripcion || '-',
         fechaCarga: a.fecha_carga ? new Date(a.fecha_carga).toLocaleDateString('es-AR') : '-',
@@ -157,7 +157,7 @@ export default function Reportes() {
   const exportarExcel = () => {
     const filas = ausenciasFiltradas.map(a => {
       const emp = empleados.find(e => e.id === a.empleado_id)
-      return { Nombre: emp?.nombre || '-', Departamento: emp?.departamento || '-', Fecha: new Date(a.fecha).toLocaleDateString('es-AR'), Motivo: a.motivo, Descripcion: a.descripcion || '-', FechaCarga: a.fecha_carga ? new Date(a.fecha_carga).toLocaleDateString('es-AR') : '-' }
+      return { Nombre: emp?.nombre || '-', Departamento: emp?.departamento || '-', Fecha: new Date(a.fecha + 'T12:00:00').toLocaleDateString('es-AR'), Motivo: a.motivo, Descripcion: a.descripcion || '-', FechaCarga: a.fecha_carga ? new Date(a.fecha_carga).toLocaleDateString('es-AR') : '-' }
     })
     const headers = ['Nombre', 'Departamento', 'Fecha', 'Motivo', 'Descripcion', 'FechaCarga']
     const csv = [headers.join(','), ...filas.map(f => headers.map(h => '"' + (f[h] || '') + '"').join(','))].join('\n')
@@ -363,8 +363,8 @@ export default function Reportes() {
                           <td className="px-4 py-3 text-gray-500 text-xs">{emp?.departamento || '-'}</td>
                           <td className="px-4 py-3 text-gray-500 text-xs">
                             {esRango
-                              ? new Date(g.fechaDesde).toLocaleDateString('es-AR') + ' al ' + new Date(g.fechaHasta).toLocaleDateString('es-AR')
-                              : new Date(g.fechaHasta).toLocaleDateString('es-AR')}
+                              ? new Date(g.fechaDesde + 'T12:00:00').toLocaleDateString('es-AR') + ' al ' + new Date(g.fechaHasta + 'T12:00:00').toLocaleDateString('es-AR')
+                              : new Date(g.fechaHasta + 'T12:00:00').toLocaleDateString('es-AR')}
                           </td>
                           <td className="px-4 py-3 text-gray-500 text-xs">{g.dias} dia{g.dias > 1 ? 's' : ''}</td>
                           <td className="px-4 py-3"><span className={cat.color + ' inline-block px-2 py-1 rounded-full text-xs font-medium'}>{cat.emoji} {g.motivo}</span></td>
