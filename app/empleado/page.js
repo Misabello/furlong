@@ -44,8 +44,7 @@ export default function Empleado() {
     const current = new Date(desde)
     const end = new Date(hasta)
     while (current <= end) {
-      const diaSemana = current.getDay()
-      if (diaSemana !== 0 && diaSemana !== 6) fechas.push(current.toISOString().split('T')[0])
+      if (current.getDay() !== 0 && current.getDay() !== 6) fechas.push(current.toISOString().split('T')[0])
       current.setDate(current.getDate() + 1)
     }
     return fechas
@@ -56,6 +55,12 @@ export default function Empleado() {
     return generarFechas(fechaDesde, usarRango && fechaHasta ? fechaHasta : fechaDesde).length
   }
 
+  const getBsasTime = () => {
+    const now = new Date()
+    now.setHours(now.getHours() - 3)
+    return now
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -63,8 +68,7 @@ export default function Empleado() {
     const hasta = usarRango && fechaHasta ? fechaHasta : fechaDesde
     const fechas = generarFechas(fechaDesde, hasta)
     if (fechas.length === 0) { setMensaje('El rango no incluye dias habiles.'); setLoading(false); return }
-    const now = new Date()
-    const bsas = new Date(now.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }))
+    const bsas = getBsasTime()
     const registros = fechas.map(f => ({ empleado_id: usuario.id, fecha: f, motivo, descripcion, fecha_carga: bsas.toISOString() }))
     const { error } = await supabase.from('ausencias').insert(registros)
     if (error) {
@@ -101,8 +105,6 @@ export default function Empleado() {
   return (
     <main className="min-h-screen bg-gray-100 p-4">
       <div className="max-w-2xl mx-auto">
-
-        {/* Header mobile-friendly */}
         <div className="flex justify-between items-center mb-4">
           <div>
             <h1 className="text-xl font-bold text-gray-800">Hola, {usuario?.nombre?.split(',')[0]}</h1>
@@ -116,7 +118,6 @@ export default function Empleado() {
           </div>
         </div>
 
-        {/* Formulario */}
         <div className="bg-white rounded-xl shadow p-4 mb-4">
           <h2 className="text-base font-semibold text-gray-700 mb-3">Nueva ausencia</h2>
           <form onSubmit={handleSubmit} className="space-y-3">
@@ -160,7 +161,6 @@ export default function Empleado() {
           </form>
         </div>
 
-        {/* Historial */}
         <div className="bg-white rounded-xl shadow p-4">
           <h2 className="text-base font-semibold text-gray-700 mb-3">Mis ausencias</h2>
           {ausencias.length === 0 ? (

@@ -17,7 +17,6 @@ export default function Supervisor() {
   const [modoFiltro, setModoFiltro] = useState(false)
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [tab, setTab] = useState('calendario')
-  // Ausencias propias
   const [fechaDesdeAus, setFechaDesdeAus] = useState('')
   const [fechaHastaAus, setFechaHastaAus] = useState('')
   const [motivoAus, setMotivoAus] = useState('')
@@ -56,6 +55,12 @@ export default function Supervisor() {
         return result
       })()
     : dias
+
+  const getBsasTime = () => {
+    const now = new Date()
+    now.setHours(now.getHours() - 3)
+    return now
+  }
 
   useEffect(() => {
     const init = async () => {
@@ -109,11 +114,6 @@ export default function Supervisor() {
     return generarFechas(fechaDesdeAus, usarRangoAus && fechaHastaAus ? fechaHastaAus : fechaDesdeAus).length
   }
 
-  const getBsasTime = () => {
-    const now = new Date()
-    return new Date(now.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }))
-  }
-
   const handleSubmitAusencia = async (e) => {
     e.preventDefault()
     setLoadingAus(true)
@@ -158,7 +158,6 @@ export default function Supervisor() {
     <main className="min-h-screen bg-gray-100 p-4">
       <div className="max-w-6xl mx-auto">
 
-        {/* Header */}
         <div className="flex justify-between items-center mb-4">
           <div>
             <h1 className="text-xl font-bold text-gray-800">Panel Supervisor</h1>
@@ -168,7 +167,7 @@ export default function Supervisor() {
             <Image src="/logo.png" alt="Furlong" width={80} height={30} className="object-contain hidden sm:block" />
             <button onClick={() => setMenuAbierto(!menuAbierto)} className="sm:hidden p-2 rounded-lg bg-white shadow text-gray-600">☰</button>
             <div className="hidden sm:flex items-center gap-2">
-              <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" className="text-xs text-gray-500 hover:text-blue-600">❓</a>
+              <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" title="Ayuda" className="text-xs text-gray-500 hover:text-blue-600">❓</a>
               <button onClick={() => setTab('calendario')} title="Calendario" className={`text-xs px-2 py-1.5 rounded-lg transition ${tab === 'calendario' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:underline'}`}>📅</button>
               <button onClick={() => setTab('misausencias')} title="Mis ausencias" className={`text-xs px-2 py-1.5 rounded-lg transition ${tab === 'misausencias' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:underline'}`}>📋</button>
               <button onClick={() => router.push('/perfil')} title="Mi perfil" className="text-xs text-blue-600 hover:underline">👤</button>
@@ -179,7 +178,6 @@ export default function Supervisor() {
           </div>
         </div>
 
-        {/* Menu mobile */}
         {menuAbierto && (
           <div className="sm:hidden bg-white rounded-xl shadow p-4 mb-4 flex flex-col gap-3">
             <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-500">❓ Ayuda</a>
@@ -192,7 +190,6 @@ export default function Supervisor() {
           </div>
         )}
 
-        {/* CALENDARIO */}
         {tab === 'calendario' && (
           <>
             <div className="bg-white rounded-xl shadow px-4 py-3 mb-4 flex items-center gap-3">
@@ -283,7 +280,6 @@ export default function Supervisor() {
           </>
         )}
 
-        {/* MIS AUSENCIAS */}
         {tab === 'misausencias' && (
           <div className="max-w-2xl mx-auto">
             <div className="bg-white rounded-xl shadow p-4 mb-4">
@@ -328,7 +324,6 @@ export default function Supervisor() {
                 </button>
               </form>
             </div>
-
             <div className="bg-white rounded-xl shadow p-4">
               <h2 className="text-base font-semibold text-gray-700 mb-3">Mis ausencias</h2>
               {misAusencias.length === 0 ? (

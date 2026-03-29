@@ -24,7 +24,6 @@ export default function Admin() {
   const [filtroHasta, setFiltroHasta] = useState('')
   const [modoFiltro, setModoFiltro] = useState(false)
   const [menuAbierto, setMenuAbierto] = useState(false)
-  // Ausencias propias admin
   const [fechaDesdeAus, setFechaDesdeAus] = useState('')
   const [fechaHastaAus, setFechaHastaAus] = useState('')
   const [motivoAus, setMotivoAus] = useState('')
@@ -52,6 +51,12 @@ export default function Admin() {
   const fechaFin = modoFiltro && filtroHasta ? filtroHasta : dias[4].toISOString().split('T')[0]
   const formatFecha = (d) => d.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })
   const getCat = (nombre) => categorias.find(c => c.nombre === nombre) || { emoji: '📝', color: 'bg-gray-100 text-gray-600' }
+
+  const getBsasTime = () => {
+    const now = new Date()
+    now.setHours(now.getHours() - 3)
+    return now
+  }
 
   const diasMostrar = modoFiltro && filtroDesde && filtroHasta
     ? (() => {
@@ -118,6 +123,11 @@ export default function Admin() {
     return fechas
   }
 
+  const cantidadDiasAus = () => {
+    if (!fechaDesdeAus) return 0
+    return generarFechas(fechaDesdeAus, usarRangoAus && fechaHastaAus ? fechaHastaAus : fechaDesdeAus).length
+  }
+
   const handleSubmitAusencia = async (e) => {
     e.preventDefault()
     setLoadingAus(true)
@@ -125,8 +135,7 @@ export default function Admin() {
     const hasta = usarRangoAus && fechaHastaAus ? fechaHastaAus : fechaDesdeAus
     const fechas = generarFechas(fechaDesdeAus, hasta)
     if (fechas.length === 0) { setMensajeAus('El rango no incluye dias habiles.'); setLoadingAus(false); return }
-    const now = new Date()
-    const bsas = new Date(now.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }))
+    const bsas = getBsasTime()
     const registros = fechas.map(f => ({ empleado_id: usuario.id, fecha: f, motivo: motivoAus, descripcion: descripcionAus, fecha_carga: bsas.toISOString() }))
     const { error } = await supabase.from('ausencias').insert(registros)
     if (error) { setMensajeAus('Error al registrar.') }
@@ -146,7 +155,7 @@ export default function Admin() {
   }
 
   const empleadosFiltrados = usuarios.filter(u =>
-    (filtroDept === 'Todos' || u.departamento === filtroDept)
+    filtroDept === 'Todos' || u.departamento === filtroDept
   )
 
   const handleSubmit = async (e) => {
@@ -206,10 +215,6 @@ export default function Admin() {
   const supervisores = usuarios.filter(u => u.rol === 'supervisor')
   const rolColor = { admin: 'bg-red-100 text-red-700', supervisor: 'bg-purple-100 text-purple-700', empleado: 'bg-blue-100 text-blue-700' }
   const deptos = ['Todos', ...departamentos.map(d => d.nombre)]
-  const cantidadDiasAus = () => {
-    if (!fechaDesdeAus) return 0
-    return generarFechas(fechaDesdeAus, usarRangoAus && fechaHastaAus ? fechaHastaAus : fechaDesdeAus).length
-  }
 
   if (!usuario) return <main className="min-h-screen bg-gray-100 flex items-center justify-center"><p className="text-gray-500">Cargando...</p></main>
 
@@ -217,7 +222,6 @@ export default function Admin() {
     <main className="min-h-screen bg-gray-100 p-4">
       <div className="max-w-7xl mx-auto">
 
-        {/* Header */}
         <div className="flex justify-between items-center mb-4">
           <div>
             <h1 className="text-xl font-bold text-gray-800">Panel Admin</h1>
@@ -227,7 +231,7 @@ export default function Admin() {
             <Image src="/logo.png" alt="Furlong" width={80} height={30} className="object-contain hidden sm:block" />
             <button onClick={() => setMenuAbierto(!menuAbierto)} className="sm:hidden p-2 rounded-lg bg-white shadow text-gray-600">☰</button>
             <div className="hidden sm:flex items-center gap-2">
-              <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" className="text-xs text-gray-500 hover:text-blue-600">❓</a>
+              <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" title="Ayuda" className="text-xs text-gray-500 hover:text-blue-600">❓</a>
               {[
                 { key: 'calendario', icon: '📅', label: 'Calendario' },
                 { key: 'misausencias', icon: '📋', label: 'Mis ausencias' },
@@ -240,12 +244,11 @@ export default function Admin() {
                   {t.icon}
                 </button>
               ))}
-              <button onClick={handleLogout} className="text-xs text-red-500 hover:underline">Salir</button>
+              <button onClick={handleLogout} title="Cerrar sesion" className="text-xs text-red-500 hover:underline">🚪</button>
             </div>
           </div>
         </div>
 
-        {/* Menu mobile */}
         {menuAbierto && (
           <div className="sm:hidden bg-white rounded-xl shadow p-4 mb-4 flex flex-col gap-3">
             <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-500">❓ Ayuda</a>
@@ -263,7 +266,6 @@ export default function Admin() {
           </div>
         )}
 
-        {/* CALENDARIO */}
         {tab === 'calendario' && (
           <>
             <div className="bg-white rounded-xl shadow px-4 py-3 mb-4">
@@ -324,6 +326,7 @@ export default function Admin() {
                         <td className="px-3 py-2">
                           <p className="font-medium text-gray-700">{emp.nombre.split(',')[0]}</p>
                           {emp.rol === 'supervisor' && <span className="text-purple-500" style={{fontSize:'10px'}}>Supervisor</span>}
+                          {emp.rol === 'admin' && <span className="text-red-500" style={{fontSize:'10px'}}>Admin</span>}
                           {diasMostrar.map(d => tieneAusencia(emp.id, d)).find(a => a?.fecha_carga) && (
                             <p className="text-gray-400 mt-0.5" style={{fontSize:'10px'}}>
                               {new Date(diasMostrar.map(d => tieneAusencia(emp.id, d)).find(a => a?.fecha_carga)?.fecha_carga).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
@@ -354,7 +357,6 @@ export default function Admin() {
           </>
         )}
 
-        {/* MIS AUSENCIAS ADMIN */}
         {tab === 'misausencias' && (
           <div className="max-w-2xl mx-auto">
             <div className="bg-white rounded-xl shadow p-4 mb-4">
@@ -399,7 +401,6 @@ export default function Admin() {
                 </button>
               </form>
             </div>
-
             <div className="bg-white rounded-xl shadow p-4">
               <h2 className="text-base font-semibold text-gray-700 mb-3">Mis ausencias</h2>
               {misAusencias.length === 0 ? (
@@ -421,7 +422,6 @@ export default function Admin() {
           </div>
         )}
 
-        {/* USUARIOS */}
         {tab === 'usuarios' && (
           <>
             <div className="bg-white rounded-xl shadow p-4 mb-4">
@@ -502,7 +502,6 @@ export default function Admin() {
           </>
         )}
 
-        {/* DEPARTAMENTOS */}
         {tab === 'departamentos' && (
           <div className="bg-white rounded-xl shadow overflow-x-auto">
             <table className="w-full text-sm">
