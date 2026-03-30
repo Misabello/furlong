@@ -284,18 +284,22 @@ export default function Admin() {
                 { key: 'misausencias', icon: '📋', label: 'Mis ausencias' },
                 { key: 'usuarios', icon: '👥', label: 'Usuarios' },
                 { key: 'departamentos', icon: '🏢', label: 'Departamentos' },
-                { key: 'categorias', icon: '🏷️', label: 'Categorias' },
-                { key: 'ausencias', icon: '📊', label: 'Reportes' },
               ].map(t => (
                 <button key={t.key} onClick={() => setTab(t.key)} className={`flex items-center gap-1.5 px-2 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition ${tab === t.key ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-100 shadow-sm'}`}>
                   <span>{t.icon}</span>
                   <span className="hidden md:inline">{t.label}</span>
                 </button>
               ))}
-              <button onClick={() => router.push('/perfil')} className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium bg-white text-blue-600 hover:bg-gray-100 shadow-sm transition">
-                <span>👤</span>
-                <span className="hidden md:inline">Mi perfil</span>
-              </button>
+              {[
+                { icon: '🏷️', label: 'Categorias', action: () => router.push('/categorias') },
+                { icon: '📊', label: 'Reportes', action: () => router.push('/reportes') },
+                { icon: '👤', label: 'Mi perfil', action: () => router.push('/perfil') },
+              ].map((b, i) => (
+                <button key={i} onClick={b.action} className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium bg-white text-blue-600 hover:bg-gray-100 shadow-sm transition">
+                  <span>{b.icon}</span>
+                  <span className="hidden md:inline">{b.label}</span>
+                </button>
+              ))}
               <button onClick={handleLogout} className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium bg-white text-red-500 hover:bg-gray-100 shadow-sm transition">
                 <span>🚪</span>
                 <span className="hidden md:inline">Salir</span>
@@ -312,11 +316,11 @@ export default function Admin() {
               { key: 'misausencias', label: '📋 Mis ausencias' },
               { key: 'usuarios', label: '👥 Usuarios' },
               { key: 'departamentos', label: '🏢 Departamentos' },
-              { key: 'categorias', label: '🏷️ Categorias' },
-              { key: 'ausencias', label: '📊 Reportes' },
             ].map(t => (
               <button key={t.key} onClick={() => { setTab(t.key); setMenuAbierto(false) }} className={`text-sm text-left px-3 py-2 rounded-lg ${tab === t.key ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-600'}`}>{t.label}</button>
             ))}
+            <button onClick={() => { router.push('/categorias'); setMenuAbierto(false) }} className="text-sm text-blue-600 text-left">🏷️ Categorias</button>
+            <button onClick={() => { router.push('/reportes'); setMenuAbierto(false) }} className="text-sm text-blue-600 text-left">📊 Reportes</button>
             <button onClick={() => { router.push('/perfil'); setMenuAbierto(false) }} className="text-sm text-blue-600 text-left">👤 Mi perfil</button>
             <button onClick={handleLogout} className="text-sm text-red-500 text-left">🚪 Cerrar sesion</button>
           </div>
@@ -656,13 +660,6 @@ export default function Admin() {
           </div>
         )}
 
-        {tab === 'categorias' && (
-          <iframe src="/categorias" className="w-full h-screen rounded-xl shadow border-0" />
-        )}
-
-        {tab === 'ausencias' && (
-          <iframe src="/reportes" className="w-full h-screen rounded-xl shadow border-0" />
-        )}
 
       </div>
     </main>
