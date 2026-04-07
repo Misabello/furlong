@@ -225,8 +225,16 @@ export default function Admin() {
   }
 
   const handleEliminar = async (id) => {
-    if (!confirm('Seguro que queres eliminar este usuario?')) return
-    await supabase.from('usuarios').delete().eq('id', id)
+    if (!confirm('Seguro que queres eliminar este usuario? Se borrarán todas sus ausencias.')) return
+    const res = await fetch('/api/eliminar-usuario', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: id }),
+    })
+    const data = await res.json()
+    if (!data.ok) {
+      alert('Error al eliminar: ' + data.error)
+    }
     cargarUsuarios()
   }
 
