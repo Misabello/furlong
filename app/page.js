@@ -17,28 +17,42 @@ export default function Login() {
     setLoading(true)
     setError('')
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
-    if (error) {
-      setError('Email o contrasena incorrectos')
+      if (error) {
+        setError('Email o contrasena incorrectos')
+        setLoading(false)
+        return
+      }
+
+      const { data: usuario, error: errorUsuario } = await supabase
+        .from('usuarios')
+        .select('rol')
+        .eq('id', data.user.id)
+        .single()
+
+      if (errorUsuario || !usuario) {
+        console.error('Error al obtener usuario:', errorUsuario)
+        setError('Tu cuenta no está configurada correctamente. Contactá al administrador.')
+        await supabase.auth.signOut()
+        setLoading(false)
+        return
+      }
+
+      if (usuario.rol === 'admin') {
+        router.push('/admin')
+      } else if (usuario.rol === 'supervisor') {
+        router.push('/supervisor')
+      } else {
+        router.push('/empleado')
+      }
+    } catch (err) {
+      console.error('Error inesperado en login:', err)
+      setError('Ocurrió un error inesperado. Intentá de nuevo.')
+    } finally {
       setLoading(false)
-      return
     }
-
-    const { data: usuario } = await supabase
-      .from('usuarios')
-      .select('rol')
-      .eq('id', data.user.id)
-      .single()
-
-    if (usuario?.rol === 'admin') {
-      router.push('/admin')
-    } else if (usuario?.rol === 'supervisor') {
-      router.push('/supervisor')
-    } else {
-      router.push('/empleado')
-    }
-    setLoading(false)
   }
 
   const handleRecuperar = async () => {
