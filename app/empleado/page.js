@@ -22,6 +22,9 @@ export default function Empleado() {
   const [editFechaDesde, setEditFechaDesde] = useState('')
   const [editFechaHasta, setEditFechaHasta] = useState('')
   const [editUsarRango, setEditUsarRango] = useState(false)
+  const [misAusFiltroDesde, setMisAusFiltroDesde] = useState('')
+  const [misAusFiltroHasta, setMisAusFiltroHasta] = useState('')
+  const [misAusFiltroMotivo, setMisAusFiltroMotivo] = useState('todos')
   const { categorias } = useCategorias()
   const router = useRouter()
 
@@ -81,8 +84,13 @@ export default function Empleado() {
     if (fechas.length === 0) { setLoading(false); return }
     const bsas = getBsasTime()
     const registros = fechas.map(f => ({ empleado_id: usuario.id, fecha: f, motivo, descripcion, fecha_carga: bsas.toISOString() }))
-    const { data: conflictos } = await supabase.from('ausencias').select('fecha').eq('empleado_id', usuario.id).in('fecha', fechas)
-    if (conflictos?.length > 0) {
+    const { data: conflictos, error: errConflictos } = await supabase.from('ausencias').select('fecha').eq('empleado_id', usuario.id).in('fecha', fechas)
+    if (errConflictos) {
+      setMensaje('Error al verificar ausencias existentes. Intentá de nuevo.')
+      setLoading(false)
+      return
+    }
+    if (conflictos.length > 0) {
       setMensaje('Ya tenes ausencias registradas en: ' + conflictos.map(c => new Date(c.fecha + 'T12:00:00').toLocaleDateString('es-AR')).join(', '))
       setLoading(false)
       return
@@ -128,8 +136,9 @@ export default function Empleado() {
     const hasta = editUsarRango && editFechaHasta ? editFechaHasta : editFechaDesde
     const nuevasFechas = generarFechas(editFechaDesde, hasta)
     if (nuevasFechas.length === 0) return
-    const { data: conflictos } = await supabase.from('ausencias').select('fecha, id').eq('empleado_id', usuario.id).in('fecha', nuevasFechas)
-    const reales = conflictos?.filter(c => !ids.includes(c.id)) || []
+    const { data: conflictos, error: errConflictos } = await supabase.from('ausencias').select('fecha, id').eq('empleado_id', usuario.id).in('fecha', nuevasFechas)
+    if (errConflictos) { setMensaje('Error al verificar ausencias. Intentá de nuevo.'); return }
+    const reales = conflictos.filter(c => !ids.includes(c.id))
     if (reales.length > 0) {
       setMensaje('Ya tenes ausencias en: ' + reales.map(c => new Date(c.fecha + 'T12:00:00').toLocaleDateString('es-AR')).join(', '))
       return
@@ -244,12 +253,31 @@ export default function Empleado() {
                 }
               })
               grupos.sort((a, b) => new Date(b.fechaHasta) - new Date(a.fechaHasta))
+              const gruposFiltrados = grupos.filter(g => {
+                if (misAusFiltroMotivo !== 'todos' && g.motivo !== misAusFiltroMotivo) return false
+                if (misAusFiltroDesde && g.fechaHasta < misAusFiltroDesde) return false
+                if (misAusFiltroHasta && g.fechaDesde > misAusFiltroHasta) return false
+                return true
+              })
               return (
+                <>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    <select value={misAusFiltroMotivo} onChange={e => setMisAusFiltroMotivo(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="todos">Todos los tipos</option>
+                      {categorias.map(c => <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>)}
+                    </select>
+                    <input type="date" value={misAusFiltroDesde} onChange={e => setMisAusFiltroDesde(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Desde" />
+                    <input type="date" value={misAusFiltroHasta} min={misAusFiltroDesde} onChange={e => setMisAusFiltroHasta(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Hasta" />
+                    {(misAusFiltroDesde || misAusFiltroHasta || misAusFiltroMotivo !== 'todos') && (
+                      <button onClick={() => { setMisAusFiltroDesde(''); setMisAusFiltroHasta(''); setMisAusFiltroMotivo('todos') }} className="text-xs text-gray-400 hover:text-gray-600 underline">Limpiar</button>
+                    )}
+                  </div>
+                  {gruposFiltrados.length === 0 && <p className="text-gray-400 text-sm">Sin resultados para los filtros aplicados.</p>}
                 <ul className="space-y-2">
-                  {grupos.map((g, idx) => {
+                  {gruposFiltrados.map((g, idx) => {
                     const cat = getCategoriaInfo(g.motivo)
                     const esRango = g.dias > 1
-                    const esFutura = g.fechaHasta > hoy
+                    const esFutura = g.fechaHasta >= hoy
                     const editando = editandoIdx === idx
                     return (
                       <li key={idx} className="border-b pb-3">
@@ -306,6 +334,7 @@ export default function Empleado() {
                     )
                   })}
                 </ul>
+                </>
               )
             })()
           )}

@@ -30,7 +30,7 @@ async function getAccessToken(usuario) {
 }
 
 export async function POST(request) {
-  const { userId, filas, desde, hasta } = await request.json()
+  const { userId, filas, resumenFilas, desde, hasta } = await request.json()
 
   const { data: usuario } = await supabaseAdmin
     .from('usuarios')
@@ -42,10 +42,30 @@ export async function POST(request) {
   if (!accessToken) return Response.json({ ok: false, reason: 'not_connected' }, { status: 401 })
 
   const titulo = `Ausencias ${desde} al ${hasta}`
-  const headers = ['Nombre', 'Departamento', 'Fecha', 'Motivo', 'Descripcion', 'Fecha de carga']
-  const valores = [headers, ...filas.map(f => [
+  const headersDetalle = ['Nombre', 'Departamento', 'Fecha', 'Motivo', 'Descripcion', 'Fecha de carga']
+  const valoresDetalle = [headersDetalle, ...filas.map(f => [
     f.nombre, f.departamento, f.fecha, f.motivo, f.descripcion, f.fechaCarga
   ])]
+
+  const sheetsConfig = [{
+    properties: { title: 'Detalle' },
+    data: [{ startRow: 0, startColumn: 0, rowData: valoresDetalle.map(fila => ({
+      values: fila.map(celda => ({ userEnteredValue: { stringValue: String(celda ?? '') } }))
+    }))}]
+  }]
+
+  if (resumenFilas && resumenFilas.length > 0) {
+    const headersResumen = ['Empleado', 'Departamento', 'Motivo', 'Dias', 'Total ausencias', 'Vac. Disponibles', 'Vac. Tomadas', 'Vac. Restantes']
+    const valoresResumen = [headersResumen, ...resumenFilas.map(f => [
+      f.nombre, f.departamento, f.motivo, f.dias, f.total, f.vacDisponibles, f.vacTomadas, f.vacRestantes
+    ])]
+    sheetsConfig.push({
+      properties: { title: 'Resumen' },
+      data: [{ startRow: 0, startColumn: 0, rowData: valoresResumen.map(fila => ({
+        values: fila.map(celda => ({ userEnteredValue: { stringValue: String(celda ?? '') } }))
+      }))}]
+    })
+  }
 
   const res = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
     method: 'POST',
@@ -55,12 +75,7 @@ export async function POST(request) {
     },
     body: JSON.stringify({
       properties: { title: titulo },
-      sheets: [{
-        properties: { title: 'Ausencias' },
-        data: [{ startRow: 0, startColumn: 0, rowData: valores.map(fila => ({
-          values: fila.map(celda => ({ userEnteredValue: { stringValue: String(celda ?? '') } }))
-        }))}]
-      }]
+      sheets: sheetsConfig,
     }),
   })
 

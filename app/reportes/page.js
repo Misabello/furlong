@@ -54,6 +54,17 @@ export default function Reportes() {
 
   const getCat = (nombre) => categorias.find(c => c.nombre === nombre) || { emoji: '📝', color: 'bg-gray-100 text-gray-600' }
 
+  const calcularDiasVacaciones = (fechaIngreso) => {
+    if (!fechaIngreso) return 0
+    const anios = (new Date() - new Date(fechaIngreso)) / (365.25 * 24 * 60 * 60 * 1000)
+    if (anios < 5) return 14
+    if (anios < 10) return 21
+    if (anios < 20) return 28
+    return 35
+  }
+
+  const esVacacion = (motivo) => motivo?.toLowerCase().includes('vacaci')
+
   const ausenciasFiltradas = ausencias.filter(a => {
     const emp = empleados.find(e => e.id === a.empleado_id)
     return filtroDept === 'Todos' || emp?.departamento === filtroDept
@@ -65,9 +76,10 @@ export default function Reportes() {
     ausenciasFiltradas.forEach(a => {
       const emp = empleados.find(e => e.id === a.empleado_id)
       if (!emp) return
-      if (!mapa[emp.id]) mapa[emp.id] = { nombre: emp.nombre, departamento: emp.departamento, motivos: {} }
+      if (!mapa[emp.id]) mapa[emp.id] = { nombre: emp.nombre, departamento: emp.departamento, fechaIngreso: emp.fecha_ingreso, motivos: {}, vacTomadas: 0 }
       if (!mapa[emp.id].motivos[a.motivo]) mapa[emp.id].motivos[a.motivo] = 0
       mapa[emp.id].motivos[a.motivo]++
+      if (esVacacion(a.motivo)) mapa[emp.id].vacTomadas++
     })
     return Object.values(mapa).sort((a, b) => a.nombre.localeCompare(b.nombre))
   }
@@ -138,10 +150,26 @@ export default function Reportes() {
         fechaCarga: a.fecha_carga ? new Date(a.fecha_carga).toLocaleDateString('es-AR') : '-',
       }
     })
+    const resumenFilas = resumenPorEmpleado().flatMap(emp => {
+      const motivos = Object.entries(emp.motivos)
+      const total = motivos.reduce((sum, [, d]) => sum + d, 0)
+      const vacDisp = calcularDiasVacaciones(emp.fechaIngreso)
+      const vacRest = Math.max(0, vacDisp - emp.vacTomadas)
+      return motivos.map(([motivo, dias], mi) => ({
+        nombre: mi === 0 ? emp.nombre : '',
+        departamento: mi === 0 ? (emp.departamento || '-') : '',
+        motivo,
+        dias: String(dias),
+        total: mi === 0 ? String(total) : '',
+        vacDisponibles: mi === 0 ? String(vacDisp) : '',
+        vacTomadas: mi === 0 ? String(emp.vacTomadas) : '',
+        vacRestantes: mi === 0 ? String(vacRest) : '',
+      }))
+    })
     const res = await fetch('/api/google/sheets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: usuario?.id, filas, desde: filtroDesde, hasta: filtroHasta }),
+      body: JSON.stringify({ userId: usuario?.id, filas, resumenFilas, desde: filtroDesde, hasta: filtroHasta }),
     })
     const data = await res.json()
     if (data.ok) {
@@ -296,15 +324,20 @@ export default function Reportes() {
                     <th className="text-left px-4 py-3 text-gray-600 font-semibold">Motivo</th>
                     <th className="text-left px-4 py-3 text-gray-600 font-semibold">Dias</th>
                     <th className="text-left px-4 py-3 text-gray-600 font-semibold">Total</th>
+                    <th className="text-left px-4 py-3 text-green-700 font-semibold bg-green-50">Vac. Disponibles</th>
+                    <th className="text-left px-4 py-3 text-orange-700 font-semibold bg-orange-50">Vac. Tomadas</th>
+                    <th className="text-left px-4 py-3 text-blue-700 font-semibold bg-blue-50">Vac. Restantes</th>
                   </tr>
                 </thead>
                 <tbody>
                   {resumenPorEmpleado().length === 0 ? (
-                    <tr><td colSpan={5} className="text-center text-gray-400 py-8">Sin ausencias.</td></tr>
+                    <tr><td colSpan={8} className="text-center text-gray-400 py-8">Sin ausencias.</td></tr>
                   ) : (
                     resumenPorEmpleado().map((emp, ei) => {
                       const motivos = Object.entries(emp.motivos)
                       const total = motivos.reduce((sum, [, dias]) => sum + dias, 0)
+                      const vacDisp = calcularDiasVacaciones(emp.fechaIngreso)
+                      const vacRest = Math.max(0, vacDisp - emp.vacTomadas)
                       return motivos.map(([motivo, dias], mi) => {
                         const cat = getCat(motivo)
                         return (
@@ -320,7 +353,12 @@ export default function Reportes() {
                             </td>
                             <td className="px-4 py-3 text-gray-600">{dias} dia{dias > 1 ? 's' : ''}</td>
                             {mi === 0 && (
-                              <td className="px-4 py-3 font-bold text-gray-800" rowSpan={motivos.length}>{total} dia{total > 1 ? 's' : ''}</td>
+                              <>
+                                <td className="px-4 py-3 font-bold text-gray-800" rowSpan={motivos.length}>{total} dia{total > 1 ? 's' : ''}</td>
+                                <td className="px-4 py-3 font-semibold text-green-700 bg-green-50" rowSpan={motivos.length}>{vacDisp}</td>
+                                <td className="px-4 py-3 font-semibold text-orange-700 bg-orange-50" rowSpan={motivos.length}>{emp.vacTomadas}</td>
+                                <td className={`px-4 py-3 font-bold bg-blue-50 ${vacRest <= 0 ? 'text-red-600' : 'text-blue-700'}`} rowSpan={motivos.length}>{vacRest}</td>
+                              </>
                             )}
                           </tr>
                         )
