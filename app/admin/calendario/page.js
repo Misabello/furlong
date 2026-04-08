@@ -10,6 +10,7 @@ const DEPARTAMENTOS = ['Todos', 'GERENCIA', 'MICE', 'PRODUCTO', 'ADM', 'BOOKING'
 export default function CalendarioAdmin() {
   const [empleados, setEmpleados] = useState([])
   const [ausencias, setAusencias] = useState([])
+  const [adjuntos, setAdjuntos] = useState([])
   const [semanaOffset, setSemanaOffset] = useState(0)
   const [filtroDept, setFiltroDept] = useState('Todos')
   const [busqueda, setBusqueda] = useState('')
@@ -47,8 +48,12 @@ export default function CalendarioAdmin() {
     if (empleados.length === 0) return
     const cargarAusencias = async () => {
       const ids = empleados.map(e => e.id)
-      const { data } = await supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin)
+      const [{ data }, { data: adj }] = await Promise.all([
+        supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin),
+        supabase.from('adjuntos').select('*').in('empleado_id', ids)
+      ])
       setAusencias(data || [])
+      setAdjuntos(adj || [])
     }
     cargarAusencias()
   }, [empleados, semanaOffset])
@@ -60,6 +65,11 @@ export default function CalendarioAdmin() {
   const tieneAusencia = (empleadoId, fecha) => {
     const fechaStr = fecha.toISOString().split('T')[0]
     return ausencias.find(a => a.empleado_id === empleadoId && a.fecha === fechaStr)
+  }
+
+  const getAdjunto = (empleadoId, fecha) => {
+    const fechaStr = fecha.toISOString().split('T')[0]
+    return adjuntos.find(a => a.empleado_id === empleadoId && a.fecha_desde <= fechaStr && (a.fecha_hasta || a.fecha_desde) >= fechaStr)
   }
 
   const getCat = (nombre) => categorias.find(c => c.nombre === nombre) || { emoji: '📝', color: 'bg-gray-100 text-gray-600' }
@@ -148,11 +158,15 @@ export default function CalendarioAdmin() {
                       {dias.map((d, i) => {
                         const ausencia = tieneAusencia(emp.id, d)
                         const cat = ausencia ? getCat(ausencia.motivo) : null
+                        const adjunto = ausencia ? getAdjunto(emp.id, d) : null
                         return (
                           <td key={i} className="px-4 py-3 text-center">
                             {ausencia ? (
-                              <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${cat.color}`} title={ausencia.descripcion || ausencia.motivo}>
+                              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${cat.color}`} title={ausencia.descripcion || ausencia.motivo}>
                                 {cat.emoji} {ausencia.motivo}
+                                {adjunto && (
+                                  <a href={adjunto.archivo_url} target="_blank" rel="noopener noreferrer" title={adjunto.archivo_nombre} onClick={e => e.stopPropagation()} className="opacity-70 hover:opacity-100">📎</a>
+                                )}
                               </span>
                             ) : (
                               <span className="inline-block w-4 h-4 rounded-full bg-green-400 mx-auto" title="Presente" />

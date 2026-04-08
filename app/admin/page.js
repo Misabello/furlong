@@ -11,6 +11,7 @@ export default function Admin() {
   const [usuarios, setUsuarios] = useState([])
   const [departamentos, setDepartamentos] = useState([])
   const [ausencias, setAusencias] = useState([])
+  const [adjuntosCalendario, setAdjuntosCalendario] = useState([])
   const [form, setForm] = useState({ nombre: '', email: '', password: '', departamento: '', fecha_ingreso: '', rol: 'empleado' })
   const [editando, setEditando] = useState(null)
   const [mensaje, setMensaje] = useState('')
@@ -113,6 +114,7 @@ export default function Admin() {
     let query = supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin)
     if (filtroMotivo !== 'todos') query = query.eq('motivo', filtroMotivo)
     query.then(({ data }) => setAusencias(data || []))
+    supabase.from('adjuntos').select('*').in('empleado_id', ids).then(({ data }) => setAdjuntosCalendario(data || []))
   }, [usuarios, semanaOffset, filtroMotivo, filtroDesde, filtroHasta, modoFiltro])
 
   const cargarUsuarios = async () => {
@@ -188,6 +190,11 @@ export default function Admin() {
   const tieneAusencia = (empleadoId, fecha) => {
     const fechaStr = fecha.toISOString().split('T')[0]
     return ausencias.find(a => a.empleado_id === empleadoId && a.fecha === fechaStr)
+  }
+
+  const getAdjunto = (empleadoId, fecha) => {
+    const fechaStr = fecha.toISOString().split('T')[0]
+    return adjuntosCalendario.find(a => a.empleado_id === empleadoId && a.fecha_desde <= fechaStr && (a.fecha_hasta || a.fecha_desde) >= fechaStr)
   }
 
   const empleadosFiltrados = usuarios.filter(u =>
@@ -464,16 +471,20 @@ export default function Admin() {
                         {diasMostrar.map((d, i) => {
                           const ausencia = tieneAusencia(emp.id, d)
                           const cat = ausencia ? getCat(ausencia.motivo) : null
+                          const adjunto = ausencia ? getAdjunto(emp.id, d) : null
                           return (
                             <td key={i} className="px-2 py-2 text-center">
                               {ausencia ? (
                                 <span
-                                  className={cat.color + ' inline-block px-1.5 py-0.5 rounded-full font-medium cursor-pointer hover:opacity-75'}
+                                  className={cat.color + ' inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-medium cursor-pointer hover:opacity-75'}
                                   style={{fontSize:'10px'}}
                                   title="Clic para editar"
                                   onClick={() => abrirEditCal(ausencia)}
                                 >
                                   {cat.emoji} {ausencia.motivo}
+                                  {adjunto && (
+                                    <a href={adjunto.archivo_url} target="_blank" rel="noopener noreferrer" title={adjunto.archivo_nombre} onClick={e => e.stopPropagation()}>📎</a>
+                                  )}
                                 </span>
                               ) : (
                                 <span className="text-gray-200">—</span>

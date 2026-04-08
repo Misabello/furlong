@@ -10,6 +10,7 @@ export default function Supervisor() {
   const [usuario, setUsuario] = useState(null)
   const [empleados, setEmpleados] = useState([])
   const [ausencias, setAusencias] = useState([])
+  const [adjuntosCalendario, setAdjuntosCalendario] = useState([])
   const [semanaOffset, setSemanaOffset] = useState(0)
   const [filtroMotivo, setFiltroMotivo] = useState('todos')
   const [filtroDesde, setFiltroDesde] = useState('')
@@ -113,8 +114,9 @@ export default function Supervisor() {
       const ids = empleados.map(e => e.id)
       let query = supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin)
       if (filtroMotivo !== 'todos') query = query.eq('motivo', filtroMotivo)
-      const { data } = await query
+      const [{ data }, { data: adj }] = await Promise.all([query, supabase.from('adjuntos').select('*').in('empleado_id', ids)])
       setAusencias(data || [])
+      setAdjuntosCalendario(adj || [])
     }
     cargarAusencias()
   }, [empleados, semanaOffset, filtroMotivo, filtroDesde, filtroHasta, modoFiltro])
@@ -226,6 +228,11 @@ export default function Supervisor() {
   const tieneAusencia = (empleadoId, fecha) => {
     const fechaStr = fecha.toISOString().split('T')[0]
     return ausencias.find(a => a.empleado_id === empleadoId && a.fecha === fechaStr)
+  }
+
+  const getAdjunto = (empleadoId, fecha) => {
+    const fechaStr = fecha.toISOString().split('T')[0]
+    return adjuntosCalendario.find(a => a.empleado_id === empleadoId && a.fecha_desde <= fechaStr && (a.fecha_hasta || a.fecha_desde) >= fechaStr)
   }
 
   const getCat = (nombre) => categorias.find(c => c.nombre === nombre) || { emoji: '📝', color: 'bg-gray-100 text-gray-600' }
@@ -398,16 +405,20 @@ export default function Supervisor() {
                         {diasMostrar.map((d, i) => {
                           const ausencia = tieneAusencia(emp.id, d)
                           const cat = ausencia ? getCat(ausencia.motivo) : null
+                          const adjunto = ausencia ? getAdjunto(emp.id, d) : null
                           return (
                             <td key={i} className="px-2 py-2 text-center">
                               {ausencia ? (
                                 <span
-                                  className={cat.color + ' inline-block px-1.5 py-0.5 rounded-full font-medium' + (canEditCal ? ' cursor-pointer hover:opacity-75' : '')}
+                                  className={cat.color + ' inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-medium' + (canEditCal ? ' cursor-pointer hover:opacity-75' : '')}
                                   style={{fontSize:'10px'}}
                                   title={canEditCal ? 'Clic para editar' : undefined}
                                   onClick={canEditCal ? () => abrirEditCal(ausencia) : undefined}
                                 >
                                   {cat.emoji} {ausencia.motivo}
+                                  {adjunto && (
+                                    <a href={adjunto.archivo_url} target="_blank" rel="noopener noreferrer" title={adjunto.archivo_nombre} onClick={e => e.stopPropagation()}>📎</a>
+                                  )}
                                 </span>
                               ) : (
                                 <span className="text-gray-200">—</span>
