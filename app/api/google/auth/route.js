@@ -12,7 +12,7 @@ export async function GET(request) {
     client_id: process.env.GOOGLE_CLIENT_ID,
     redirect_uri: `${appUrl}/api/google/callback`,
     response_type: 'code',
-    scope: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
+    scope: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive',
     access_type: 'offline',
     prompt: 'consent',
     state: userId,
