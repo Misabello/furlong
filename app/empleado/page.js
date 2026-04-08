@@ -9,19 +9,15 @@ import Image from 'next/image'
 export default function Empleado() {
   const [usuario, setUsuario] = useState(null)
   const [ausencias, setAusencias] = useState([])
+  const [adjuntos, setAdjuntos] = useState([])
   const [fechaDesde, setFechaDesde] = useState('')
   const [fechaHasta, setFechaHasta] = useState('')
   const [motivo, setMotivo] = useState('')
   const [descripcion, setDescripcion] = useState('')
+  const [archivo, setArchivo] = useState(null)
   const [mensaje, setMensaje] = useState('')
   const [loading, setLoading] = useState(false)
   const [usarRango, setUsarRango] = useState(false)
-  const [editandoIdx, setEditandoIdx] = useState(null)
-  const [editMotivo, setEditMotivo] = useState('')
-  const [editDescripcion, setEditDescripcion] = useState('')
-  const [editFechaDesde, setEditFechaDesde] = useState('')
-  const [editFechaHasta, setEditFechaHasta] = useState('')
-  const [editUsarRango, setEditUsarRango] = useState(false)
   const [misAusFiltroDesde, setMisAusFiltroDesde] = useState('')
   const [misAusFiltroHasta, setMisAusFiltroHasta] = useState('')
   const [misAusFiltroMotivo, setMisAusFiltroMotivo] = useState('todos')
@@ -35,6 +31,7 @@ export default function Empleado() {
       const { data } = await supabase.from('usuarios').select('*').eq('id', user.id).single()
       setUsuario(data)
       cargarAusencias(user.id)
+      cargarAdjuntos(user.id)
     }
     init()
   }, [])
@@ -46,6 +43,11 @@ export default function Empleado() {
   const cargarAusencias = async (id) => {
     const { data } = await supabase.from('ausencias').select('*').eq('empleado_id', id).order('fecha', { ascending: false })
     setAusencias(data || [])
+  }
+
+  const cargarAdjuntos = async (id) => {
+    const { data } = await supabase.from('adjuntos').select('*').eq('empleado_id', id)
+    setAdjuntos(data || [])
   }
 
   const generarFechas = (desde, hasta) => {
@@ -98,59 +100,60 @@ export default function Empleado() {
     const { error } = await supabase.from('ausencias').insert(registros)
     if (error) {
       setMensaje('Error al registrar las ausencias.')
-    } else {
-      if (usuario.supervisor_id) {
-        const { data: sup } = await supabase.from('usuarios').select('email, nombre').eq('id', usuario.supervisor_id).single()
-        if (sup) {
-          await fetch('/api/notificar', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ empleadoNombre: usuario.nombre, empleadoEmail: usuario.email, supervisorEmail: sup.email, fecha: fechas.length > 1 ? fechaDesde + ' al ' + hasta : fechaDesde, motivo, descripcion })
-          })
-        }
-      }
-      setMensaje(fechas.length > 1 ? 'Se registraron ' + fechas.length + ' dias.' : 'Ausencia registrada.')
-      setFechaDesde('')
-      setFechaHasta('')
-      setDescripcion('')
-      cargarAusencias(usuario.id)
-      // Sincronizar con Google Calendar si esta conectado (silencioso, no bloquea)
-      fetch('/api/google/evento', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: usuario.id, fechaDesde, fechaHasta: hasta, motivo, descripcion }),
-      }).catch(() => {})
+      setLoading(false)
+      return
     }
+
+    // Subir archivo si hay uno seleccionado
+    if (archivo) {
+      const fd = new FormData()
+      fd.append('file', archivo)
+      fd.append('empleadoId', usuario.id)
+      fd.append('fechaDesde', fechaDesde)
+      fd.append('fechaHasta', hasta)
+      fd.append('motivo', motivo)
+      const uploadRes = await fetch('/api/drive/upload', { method: 'POST', body: fd })
+      const uploadData = await uploadRes.json()
+      if (!uploadData.ok) {
+        setMensaje('Ausencia registrada, pero no se pudo subir el archivo: ' + (uploadData.reason || 'error'))
+      } else {
+        setMensaje((fechas.length > 1 ? 'Se registraron ' + fechas.length + ' dias.' : 'Ausencia registrada.') + ' Archivo subido.')
+      }
+      cargarAdjuntos(usuario.id)
+    } else {
+      setMensaje(fechas.length > 1 ? 'Se registraron ' + fechas.length + ' dias.' : 'Ausencia registrada.')
+    }
+
+    if (usuario.supervisor_id) {
+      const { data: sup } = await supabase.from('usuarios').select('email, nombre').eq('id', usuario.supervisor_id).single()
+      if (sup) {
+        await fetch('/api/notificar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ empleadoNombre: usuario.nombre, empleadoEmail: usuario.email, supervisorEmail: sup.email, fecha: fechas.length > 1 ? fechaDesde + ' al ' + hasta : fechaDesde, motivo, descripcion })
+        })
+      }
+    }
+
+    setFechaDesde('')
+    setFechaHasta('')
+    setDescripcion('')
+    setArchivo(null)
+    // Reset file input
+    const fileInput = document.getElementById('archivo-input')
+    if (fileInput) fileInput.value = ''
+    cargarAusencias(usuario.id)
+
+    fetch('/api/google/evento', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: usuario.id, fechaDesde, fechaHasta: hasta, motivo, descripcion }),
+    }).catch(() => {})
+
     setLoading(false)
   }
 
   const getCategoriaInfo = (nombre) => categorias.find(c => c.nombre === nombre) || { emoji: '📝', color: 'bg-gray-100 text-gray-600' }
-
-  const handleEliminar = async (ids) => {
-    if (!confirm('¿Eliminar esta ausencia?')) return
-    await supabase.from('ausencias').delete().in('id', ids)
-    cargarAusencias(usuario.id)
-  }
-
-  const handleGuardarEdicion = async (ids) => {
-    const hasta = editUsarRango && editFechaHasta ? editFechaHasta : editFechaDesde
-    const nuevasFechas = generarFechas(editFechaDesde, hasta)
-    if (nuevasFechas.length === 0) return
-    const { data: conflictos, error: errConflictos } = await supabase.from('ausencias').select('fecha, id').eq('empleado_id', usuario.id).in('fecha', nuevasFechas)
-    if (errConflictos) { setMensaje('Error al verificar ausencias. Intentá de nuevo.'); return }
-    const reales = conflictos.filter(c => !ids.includes(c.id))
-    if (reales.length > 0) {
-      setMensaje('Ya tenes ausencias en: ' + reales.map(c => new Date(c.fecha + 'T12:00:00').toLocaleDateString('es-AR')).join(', '))
-      return
-    }
-    const bsas = getBsasTime()
-    await supabase.from('ausencias').delete().in('id', ids)
-    await supabase.from('ausencias').insert(
-      nuevasFechas.map(f => ({ empleado_id: usuario.id, fecha: f, motivo: editMotivo, descripcion: editDescripcion, fecha_carga: bsas.toISOString() }))
-    )
-    setEditandoIdx(null)
-    cargarAusencias(usuario.id)
-  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -212,7 +215,7 @@ export default function Empleado() {
             )}
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Motivo</label>
-              <select value={motivo} onChange={e => setMotivo(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <select value={motivo} onChange={e => setMotivo(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white">
                 {categorias.map(c => <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>)}
               </select>
             </div>
@@ -220,7 +223,18 @@ export default function Empleado() {
               <label className="block text-xs font-medium text-gray-700 mb-1">Descripcion (opcional)</label>
               <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Detalle adicional..." />
             </div>
-            {mensaje && <p className={`text-sm font-medium px-3 py-2 rounded-lg ${mensaje.includes('Error') || mensaje.includes('Ya tenes') ? 'text-red-700 bg-red-50 border border-red-200' : 'text-green-700 bg-green-50 border border-green-200'}`}>{mensaje}</p>}
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Adjunto (opcional)</label>
+              <input
+                id="archivo-input"
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                onChange={e => setArchivo(e.target.files[0] || null)}
+                className="w-full text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+              {archivo && <p className="text-xs text-gray-400 mt-1">{archivo.name} ({(archivo.size / 1024).toFixed(0)} KB)</p>}
+            </div>
+            {mensaje && <p className={`text-sm font-medium px-3 py-2 rounded-lg ${mensaje.includes('Error') || mensaje.includes('Ya tenes') || mensaje.includes('no se pudo') ? 'text-red-700 bg-red-50 border border-red-200' : 'text-green-700 bg-green-50 border border-green-200'}`}>{mensaje}</p>}
             <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700 transition font-medium text-sm">
               {loading ? 'Registrando...' : usarRango ? 'Registrar rango' : 'Registrar ausencia'}
             </button>
@@ -233,7 +247,6 @@ export default function Empleado() {
             <p className="text-gray-400 text-sm">No tenes ausencias registradas.</p>
           ) : (
             (() => {
-              const hoy = new Date().toISOString().split('T')[0]
               const mapa = {}
               ausencias.forEach(a => {
                 const k = `${a.motivo}|${a.descripcion || ''}`
@@ -262,7 +275,7 @@ export default function Empleado() {
               return (
                 <>
                   <div className="flex flex-wrap gap-2 mb-3">
-                    <select value={misAusFiltroMotivo} onChange={e => setMisAusFiltroMotivo(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <select value={misAusFiltroMotivo} onChange={e => setMisAusFiltroMotivo(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white">
                       <option value="todos">Todos los tipos</option>
                       {categorias.map(c => <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>)}
                     </select>
@@ -273,67 +286,34 @@ export default function Empleado() {
                     )}
                   </div>
                   {gruposFiltrados.length === 0 && <p className="text-gray-400 text-sm">Sin resultados para los filtros aplicados.</p>}
-                <ul className="space-y-2">
-                  {gruposFiltrados.map((g, idx) => {
-                    const cat = getCategoriaInfo(g.motivo)
-                    const esRango = g.dias > 1
-                    const esFutura = g.fechaHasta >= hoy
-                    const editando = editandoIdx === idx
-                    return (
-                      <li key={idx} className="border-b pb-3">
-                        {editando ? (
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <button type="button" onClick={() => { setEditUsarRango(!editUsarRango); setEditFechaHasta(editFechaDesde) }} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${editUsarRango ? 'bg-blue-600' : 'bg-gray-200'}`}>
-                                <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${editUsarRango ? 'translate-x-5' : 'translate-x-1'}`} />
-                              </button>
-                              <span className="text-xs text-gray-600">Rango de fechas</span>
-                            </div>
-                            <div className={`grid gap-2 ${editUsarRango ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                              <div>
-                                <label className="block text-xs text-gray-500 mb-1">{editUsarRango ? 'Desde' : 'Fecha'}</label>
-                                <input type="date" value={editFechaDesde} onChange={e => setEditFechaDesde(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                              </div>
-                              {editUsarRango && (
-                                <div>
-                                  <label className="block text-xs text-gray-500 mb-1">Hasta</label>
-                                  <input type="date" value={editFechaHasta} min={editFechaDesde} onChange={e => setEditFechaHasta(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                                </div>
-                              )}
-                            </div>
-                            <select value={editMotivo} onChange={e => setEditMotivo(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                              {categorias.map(c => <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>)}
-                            </select>
-                            <textarea value={editDescripcion} onChange={e => setEditDescripcion(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Descripcion (opcional)" />
-                            <div className="flex gap-2 justify-end">
-                              <button onClick={() => setEditandoIdx(null)} className="text-xs text-gray-500 hover:underline">Cancelar</button>
-                              <button onClick={() => handleGuardarEdicion(g.ids)} className="text-xs bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700">Guardar</button>
-                            </div>
-                          </div>
-                        ) : (
+                  <ul className="space-y-2">
+                    {gruposFiltrados.map((g, idx) => {
+                      const cat = getCategoriaInfo(g.motivo)
+                      const esRango = g.dias > 1
+                      const adjunto = adjuntos.find(a => a.fecha_desde === g.fechaDesde && a.motivo === g.motivo)
+                      return (
+                        <li key={idx} className="border-b pb-3">
                           <div className="flex justify-between items-start">
                             <div>
                               <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${cat.color}`}>{cat.emoji} {g.motivo}</span>
                               {g.descripcion && <p className="text-xs text-gray-400 mt-1">{g.descripcion}</p>}
                               {esRango && <p className="text-xs text-gray-400 mt-0.5">{g.dias} dias</p>}
+                              {adjunto && (
+                                <a href={adjunto.archivo_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline mt-1">
+                                  📎 {adjunto.archivo_nombre}
+                                </a>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 ml-2 shrink-0">
                               <span className="text-xs text-gray-500 text-right">
                                 {esRango ? new Date(g.fechaDesde + 'T12:00:00').toLocaleDateString('es-AR') + ' al ' + new Date(g.fechaHasta + 'T12:00:00').toLocaleDateString('es-AR') : new Date(g.fechaHasta + 'T12:00:00').toLocaleDateString('es-AR')}
                               </span>
-                              {esFutura && (
-                                <>
-                                  <button onClick={() => { setEditandoIdx(idx); setEditMotivo(g.motivo); setEditDescripcion(g.descripcion || ''); setEditFechaDesde(g.fechaDesde); setEditFechaHasta(g.fechaHasta); setEditUsarRango(g.dias > 1) }} className="text-xs text-blue-500 hover:text-blue-700" title="Editar">✏️</button>
-                                  <button onClick={() => handleEliminar(g.ids)} className="text-xs text-red-400 hover:text-red-600" title="Eliminar">🗑️</button>
-                                </>
-                              )}
                             </div>
                           </div>
-                        )}
-                      </li>
-                    )
-                  })}
-                </ul>
+                        </li>
+                      )
+                    })}
+                  </ul>
                 </>
               )
             })()
