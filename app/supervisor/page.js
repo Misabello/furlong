@@ -25,12 +25,8 @@ export default function Supervisor() {
   const [mensajeAus, setMensajeAus] = useState('')
   const [loadingAus, setLoadingAus] = useState(false)
   const [misAusencias, setMisAusencias] = useState([])
-  const [editandoAusIdx, setEditandoAusIdx] = useState(null)
-  const [editAusMotivo, setEditAusMotivo] = useState('')
-  const [editAusDescripcion, setEditAusDescripcion] = useState('')
-  const [editAusFechaDesde, setEditAusFechaDesde] = useState('')
-  const [editAusFechaHasta, setEditAusFechaHasta] = useState('')
-  const [editAusUsarRango, setEditAusUsarRango] = useState(false)
+  const [archivoAus, setArchivoAus] = useState(null)
+  const [adjuntosAus, setAdjuntosAus] = useState([])
   const [misAusFiltroDesde, setMisAusFiltroDesde] = useState('')
   const [misAusFiltroHasta, setMisAusFiltroHasta] = useState('')
   const [misAusFiltroMotivo, setMisAusFiltroMotivo] = useState('todos')
@@ -94,6 +90,7 @@ export default function Supervisor() {
       }
       setEmpleados(empList || [])
       cargarMisAusencias(user.id)
+      cargarAdjuntosAus(user.id)
     }
     init()
   }, [])
@@ -117,6 +114,11 @@ export default function Supervisor() {
   const cargarMisAusencias = async (id) => {
     const { data } = await supabase.from('ausencias').select('*').eq('empleado_id', id).order('fecha', { ascending: false })
     setMisAusencias(data || [])
+  }
+
+  const cargarAdjuntosAus = async (id) => {
+    const { data } = await supabase.from('adjuntos').select('*').eq('empleado_id', id)
+    setAdjuntosAus(data || [])
   }
 
   const generarFechas = (desde, hasta) => {
@@ -161,19 +163,39 @@ export default function Supervisor() {
     const bsas = getBsasTime()
     const registros = fechas.map(f => ({ empleado_id: usuario.id, fecha: f, motivo: motivoAus, descripcion: descripcionAus, fecha_carga: bsas.toISOString() }))
     const { error } = await supabase.from('ausencias').insert(registros)
-    if (error) { setMensajeAus('Error al registrar.') }
-    else {
+    if (error) { setMensajeAus('Error al registrar.'); setLoadingAus(false); return }
+
+    if (archivoAus) {
+      const fd = new FormData()
+      fd.append('file', archivoAus)
+      fd.append('empleadoId', usuario.id)
+      fd.append('fechaDesde', fechaDesdeAus)
+      fd.append('fechaHasta', hasta)
+      fd.append('motivo', motivoAus)
+      const uploadRes = await fetch('/api/drive/upload', { method: 'POST', body: fd })
+      const uploadData = await uploadRes.json()
+      if (!uploadData.ok) {
+        setMensajeAus('Ausencia registrada, pero no se pudo subir el archivo: ' + (uploadData.reason || 'error'))
+      } else {
+        setMensajeAus((fechas.length > 1 ? 'Se registraron ' + fechas.length + ' dias.' : 'Ausencia registrada.') + ' Archivo subido.')
+      }
+      cargarAdjuntosAus(usuario.id)
+    } else {
       setMensajeAus(fechas.length > 1 ? 'Se registraron ' + fechas.length + ' dias.' : 'Ausencia registrada.')
-      setFechaDesdeAus('')
-      setFechaHastaAus('')
-      setDescripcionAus('')
-      cargarMisAusencias(usuario.id)
-      fetch('/api/google/evento', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: usuario.id, fechaDesde: fechaDesdeAus, fechaHasta: hasta, motivo: motivoAus, descripcion: descripcionAus }),
-      }).catch(() => {})
     }
+
+    setFechaDesdeAus('')
+    setFechaHastaAus('')
+    setDescripcionAus('')
+    setArchivoAus(null)
+    const fileInput = document.getElementById('archivo-input-sup')
+    if (fileInput) fileInput.value = ''
+    cargarMisAusencias(usuario.id)
+    fetch('/api/google/evento', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: usuario.id, fechaDesde: fechaDesdeAus, fechaHasta: hasta, motivo: motivoAus, descripcion: descripcionAus }),
+    }).catch(() => {})
     setLoadingAus(false)
   }
 
@@ -227,31 +249,6 @@ export default function Supervisor() {
     router.push('/')
   }
 
-  const handleEliminarAus = async (ids) => {
-    if (!confirm('¿Eliminar esta ausencia?')) return
-    await supabase.from('ausencias').delete().in('id', ids)
-    cargarMisAusencias(usuario.id)
-  }
-
-  const handleGuardarEdicionAus = async (ids) => {
-    const hasta = editAusUsarRango && editAusFechaHasta ? editAusFechaHasta : editAusFechaDesde
-    const nuevasFechas = generarFechas(editAusFechaDesde, hasta)
-    if (nuevasFechas.length === 0) return
-    const { data: conflictos, error: errConflictos } = await supabase.from('ausencias').select('fecha, id').eq('empleado_id', usuario.id).in('fecha', nuevasFechas)
-    if (errConflictos) { setMensajeAus('Error al verificar ausencias. Intentá de nuevo.'); return }
-    const reales = conflictos.filter(c => !ids.includes(c.id))
-    if (reales.length > 0) {
-      setMensajeAus('Ya tenes ausencias en: ' + reales.map(c => new Date(c.fecha + 'T12:00:00').toLocaleDateString('es-AR')).join(', '))
-      return
-    }
-    const bsas = getBsasTime()
-    await supabase.from('ausencias').delete().in('id', ids)
-    await supabase.from('ausencias').insert(
-      nuevasFechas.map(f => ({ empleado_id: usuario.id, fecha: f, motivo: editAusMotivo, descripcion: editAusDescripcion, fecha_carga: bsas.toISOString() }))
-    )
-    setEditandoAusIdx(null)
-    cargarMisAusencias(usuario.id)
-  }
 
   if (!usuario) return <main className="min-h-screen bg-gray-100 flex items-center justify-center"><p className="text-gray-500">Cargando...</p></main>
 
@@ -441,7 +438,18 @@ export default function Supervisor() {
                   <label className="block text-xs font-medium text-gray-700 mb-1">Descripcion (opcional)</label>
                   <textarea value={descripcionAus} onChange={e => setDescripcionAus(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Detalle adicional..." />
                 </div>
-                {mensajeAus && <p className={`text-sm font-medium px-3 py-2 rounded-lg ${mensajeAus.includes('Error') || mensajeAus.includes('Ya tenes') ? 'text-red-700 bg-red-50 border border-red-200' : 'text-green-700 bg-green-50 border border-green-200'}`}>{mensajeAus}</p>}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Adjunto (opcional)</label>
+                  <input
+                    id="archivo-input-sup"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                    onChange={e => setArchivoAus(e.target.files[0] || null)}
+                    className="w-full text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  {archivoAus && <p className="text-xs text-gray-400 mt-1">{archivoAus.name} ({(archivoAus.size / 1024).toFixed(0)} KB)</p>}
+                </div>
+                {mensajeAus && <p className={`text-sm font-medium px-3 py-2 rounded-lg ${mensajeAus.includes('Error') || mensajeAus.includes('Ya tenes') || mensajeAus.includes('no se pudo') ? 'text-red-700 bg-red-50 border border-red-200' : 'text-green-700 bg-green-50 border border-green-200'}`}>{mensajeAus}</p>}
                 <button type="submit" disabled={loadingAus} className="w-full bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700 transition font-medium text-sm">
                   {loadingAus ? 'Registrando...' : usarRangoAus ? 'Registrar rango' : 'Registrar ausencia'}
                 </button>
@@ -452,7 +460,6 @@ export default function Supervisor() {
               {misAusencias.length === 0 ? (
                 <p className="text-gray-400 text-sm">No tenes ausencias registradas.</p>
               ) : (() => {
-                const hoy = new Date().toISOString().split('T')[0]
                 const mapa = {}
                 misAusencias.forEach(a => {
                   const k = `${a.motivo}|${a.descripcion || ''}`
@@ -496,59 +503,26 @@ export default function Supervisor() {
                     {gruposFiltrados.map((g, idx) => {
                       const cat = getCat(g.motivo)
                       const esRango = g.dias > 1
-                      const esFutura = g.fechaHasta >= hoy
-                      const editando = editandoAusIdx === idx
+                      const adjunto = adjuntosAus.find(a => a.fecha_desde === g.fechaDesde && a.motivo === g.motivo)
                       return (
                         <li key={idx} className="border-b pb-3">
-                          {editando ? (
-                            <div className="space-y-2">
-                              <div className="flex items-center gap-2">
-                                <button type="button" onClick={() => { setEditAusUsarRango(!editAusUsarRango); setEditAusFechaHasta(editAusFechaDesde) }} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${editAusUsarRango ? 'bg-blue-600' : 'bg-gray-200'}`}>
-                                  <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${editAusUsarRango ? 'translate-x-5' : 'translate-x-1'}`} />
-                                </button>
-                                <span className="text-xs text-gray-600">Rango de fechas</span>
-                              </div>
-                              <div className={`grid gap-2 ${editAusUsarRango ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                                <div>
-                                  <label className="block text-xs text-gray-500 mb-1">{editAusUsarRango ? 'Desde' : 'Fecha'}</label>
-                                  <input type="date" value={editAusFechaDesde} onChange={e => setEditAusFechaDesde(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                                </div>
-                                {editAusUsarRango && (
-                                  <div>
-                                    <label className="block text-xs text-gray-500 mb-1">Hasta</label>
-                                    <input type="date" value={editAusFechaHasta} min={editAusFechaDesde} onChange={e => setEditAusFechaHasta(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                                  </div>
-                                )}
-                              </div>
-                              <select value={editAusMotivo} onChange={e => setEditAusMotivo(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                {categorias.map(c => <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>)}
-                              </select>
-                              <textarea value={editAusDescripcion} onChange={e => setEditAusDescripcion(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Descripcion (opcional)" />
-                              <div className="flex gap-2 justify-end">
-                                <button onClick={() => setEditandoAusIdx(null)} className="text-xs text-gray-500 hover:underline">Cancelar</button>
-                                <button onClick={() => handleGuardarEdicionAus(g.ids)} className="text-xs bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700">Guardar</button>
-                              </div>
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <span className={cat.color + ' inline-block px-2 py-1 rounded-full text-xs font-medium'}>{cat.emoji} {g.motivo}</span>
+                              {g.descripcion && <p className="text-xs text-gray-400 mt-1">{g.descripcion}</p>}
+                              {esRango && <p className="text-xs text-gray-400 mt-0.5">{g.dias} dias</p>}
+                              {adjunto && (
+                                <a href={adjunto.archivo_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline mt-1">
+                                  📎 {adjunto.archivo_nombre}
+                                </a>
+                              )}
                             </div>
-                          ) : (
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <span className={cat.color + ' inline-block px-2 py-1 rounded-full text-xs font-medium'}>{cat.emoji} {g.motivo}</span>
-                                {g.descripcion && <p className="text-xs text-gray-400 mt-1">{g.descripcion}</p>}
-                                {esRango && <p className="text-xs text-gray-400 mt-0.5">{g.dias} dias</p>}
-                              </div>
-                              <div className="flex items-center gap-2 ml-2 shrink-0">
-                                <span className="text-xs text-gray-500 text-right">
-                                  {esRango ? new Date(g.fechaDesde + 'T12:00:00').toLocaleDateString('es-AR') + ' al ' + new Date(g.fechaHasta + 'T12:00:00').toLocaleDateString('es-AR') : new Date(g.fechaHasta + 'T12:00:00').toLocaleDateString('es-AR')}
-                                </span>
-                                {esFutura && (
-                                  <>
-                                    <button onClick={() => { setEditandoAusIdx(idx); setEditAusMotivo(g.motivo); setEditAusDescripcion(g.descripcion || ''); setEditAusFechaDesde(g.fechaDesde); setEditAusFechaHasta(g.fechaHasta); setEditAusUsarRango(g.dias > 1) }} className="text-xs text-blue-500 hover:text-blue-700" title="Editar">✏️</button>
-                                    <button onClick={() => handleEliminarAus(g.ids)} className="text-xs text-red-400 hover:text-red-600" title="Eliminar">🗑️</button>
-                                  </>
-                                )}
-                              </div>
+                            <div className="ml-2 shrink-0">
+                              <span className="text-xs text-gray-500 text-right">
+                                {esRango ? new Date(g.fechaDesde + 'T12:00:00').toLocaleDateString('es-AR') + ' al ' + new Date(g.fechaHasta + 'T12:00:00').toLocaleDateString('es-AR') : new Date(g.fechaHasta + 'T12:00:00').toLocaleDateString('es-AR')}
+                              </span>
                             </div>
-                          )}
+                          </div>
                         </li>
                       )
                     })}
