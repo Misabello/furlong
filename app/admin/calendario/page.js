@@ -28,9 +28,11 @@ export default function CalendarioAdmin() {
     })
   }
 
+  const toLocalISO = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+
   const dias = getDiasSemana(semanaOffset)
-  const fechaInicio = dias[0].toISOString().split('T')[0]
-  const fechaFin = dias[6].toISOString().split('T')[0]
+  const fechaInicio = toLocalISO(dias[0])
+  const fechaFin = toLocalISO(dias[6])
 
   useEffect(() => {
     const init = async () => {
@@ -63,12 +65,12 @@ export default function CalendarioAdmin() {
     .filter(e => busqueda === '' || e.nombre.toLowerCase().includes(busqueda.toLowerCase()))
 
   const tieneAusencia = (empleadoId, fecha) => {
-    const fechaStr = fecha.toISOString().split('T')[0]
+    const fechaStr = toLocalISO(fecha)
     return ausencias.find(a => a.empleado_id === empleadoId && a.fecha === fechaStr)
   }
 
   const getAdjunto = (empleadoId, fecha) => {
-    const fechaStr = fecha.toISOString().split('T')[0]
+    const fechaStr = toLocalISO(fecha)
     return adjuntos.find(a => a.empleado_id === empleadoId && a.fecha_desde <= fechaStr && (a.fecha_hasta || a.fecha_desde) >= fechaStr)
   }
 

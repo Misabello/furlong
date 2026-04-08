@@ -69,9 +69,11 @@ export default function Admin() {
     })
   }
 
+  const toLocalISO = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+
   const dias = getDiasSemana(semanaOffset)
-  const fechaInicio = modoFiltro && filtroDesde ? filtroDesde : dias[0].toISOString().split('T')[0]
-  const fechaFin = modoFiltro && filtroHasta ? filtroHasta : dias[6].toISOString().split('T')[0]
+  const fechaInicio = modoFiltro && filtroDesde ? filtroDesde : toLocalISO(dias[0])
+  const fechaFin = modoFiltro && filtroHasta ? filtroHasta : toLocalISO(dias[6])
   const formatFecha = (d) => d.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })
   const getCat = (nombre) => categorias.find(c => c.nombre === nombre) || { emoji: '📝', color: 'bg-gray-100 text-gray-600' }
 
@@ -221,12 +223,12 @@ export default function Admin() {
   }
 
   const tieneAusencia = (empleadoId, fecha) => {
-    const fechaStr = fecha.toISOString().split('T')[0]
+    const fechaStr = toLocalISO(fecha)
     return ausencias.find(a => a.empleado_id === empleadoId && a.fecha === fechaStr)
   }
 
   const getAdjunto = (empleadoId, fecha) => {
-    const fechaStr = fecha.toISOString().split('T')[0]
+    const fechaStr = toLocalISO(fecha)
     return adjuntosCalendario.find(a => a.empleado_id === empleadoId && a.fecha_desde <= fechaStr && (a.fecha_hasta || a.fecha_desde) >= fechaStr)
   }
 
@@ -590,7 +592,7 @@ export default function Admin() {
               {misAusencias.length === 0 ? (
                 <p className="text-gray-400 text-sm">No tenes ausencias registradas.</p>
               ) : (() => {
-                const hoy = new Date().toISOString().split('T')[0]
+                const hoy = toLocalISO(new Date())
                 const mapa = {}
                 misAusencias.forEach(a => {
                   const k = `${a.motivo}|${a.descripcion || ''}`
