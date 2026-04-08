@@ -1,6 +1,6 @@
 'use client'
 export const dynamic = 'force-dynamic'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useCategorias } from '../../lib/useCategorias'
@@ -28,6 +28,9 @@ export default function Supervisor() {
   const [misAusencias, setMisAusencias] = useState([])
   const [archivoAus, setArchivoAus] = useState(null)
   const [adjuntosAus, setAdjuntosAus] = useState([])
+  const [subiendoAdjIdx, setSubiendoAdjIdx] = useState(null)
+  const [adjGrupoActual, setAdjGrupoActual] = useState(null)
+  const adjInputRef = useRef(null)
   const [editandoAusIdx, setEditandoAusIdx] = useState(null)
   const [editAusMotivo, setEditAusMotivo] = useState('')
   const [editAusDescripcion, setEditAusDescripcion] = useState('')
@@ -236,6 +239,31 @@ export default function Supervisor() {
   }
 
   const getCat = (nombre) => categorias.find(c => c.nombre === nombre) || { emoji: '📝', color: 'bg-gray-100 text-gray-600' }
+
+  const handleAdjuntarArchivo = (g, idx) => {
+    setAdjGrupoActual({ g, idx })
+    adjInputRef.current?.click()
+  }
+
+  const handleArchivoAdjunto = async (e) => {
+    const file = e.target.files[0]
+    if (!file || !adjGrupoActual) return
+    const { g, idx } = adjGrupoActual
+    setSubiendoAdjIdx(idx)
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('empleadoId', usuario.id)
+    fd.append('fechaDesde', g.fechaDesde)
+    fd.append('fechaHasta', g.fechaHasta)
+    fd.append('motivo', g.motivo)
+    const res = await fetch('/api/drive/upload', { method: 'POST', body: fd })
+    const data = await res.json()
+    if (!data.ok) alert('No se pudo subir el archivo: ' + (data.reason || 'error'))
+    await cargarAdjuntosAus(usuario.id)
+    setSubiendoAdjIdx(null)
+    setAdjGrupoActual(null)
+    e.target.value = ''
+  }
   const formatFecha = (d) => d.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })
   const formatFechaCarga = (f) => {
     if (!f) return ''
@@ -584,10 +612,14 @@ export default function Supervisor() {
                                 <span className={cat.color + ' inline-block px-2 py-1 rounded-full text-xs font-medium'}>{cat.emoji} {g.motivo}</span>
                                 {g.descripcion && <p className="text-xs text-gray-400 mt-1">{g.descripcion}</p>}
                                 {esRango && <p className="text-xs text-gray-400 mt-0.5">{g.dias} dias</p>}
-                                {adjunto && (
+                                {adjunto ? (
                                   <a href={adjunto.archivo_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline mt-1">
                                     📎 {adjunto.archivo_nombre}
                                   </a>
+                                ) : (
+                                  <button onClick={() => handleAdjuntarArchivo(g, idx)} disabled={subiendoAdjIdx === idx} className="text-xs text-gray-400 hover:text-blue-500 mt-1 disabled:opacity-50">
+                                    {subiendoAdjIdx === idx ? 'Subiendo...' : '📎 Adjuntar'}
+                                  </button>
                                 )}
                               </div>
                               <div className="flex items-center gap-2 ml-2 shrink-0">
@@ -647,6 +679,7 @@ export default function Supervisor() {
           </div>
         </div>
       )}
+      <input ref={adjInputRef} type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onChange={handleArchivoAdjunto} />
     </main>
   )
 }
