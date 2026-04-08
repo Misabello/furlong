@@ -669,26 +669,41 @@ export default function Admin() {
                   <label className="block text-xs font-medium text-gray-700 mb-1">Nombre completo</label>
                   <input value={form.nombre} onChange={e => setForm({...form, nombre: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Juan Perez" required />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
-                  <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} disabled={!!editando} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" required={!editando} />
-                </div>
-                {!editando && (
+
+                {editando ? (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" value={form.email} disabled className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm disabled:bg-gray-100" />
+                  </div>
+                ) : (
                   <>
-                    <div className="sm:col-span-2 flex items-center gap-3">
-                      <input type="checkbox" id="vincular_cuenta_admin" checked={form.vincularCuenta} onChange={e => setForm({...form, vincularCuenta: e.target.checked, password: ''})} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
-                      <label htmlFor="vincular_cuenta_admin" className="text-xs font-medium text-gray-700 cursor-pointer">Vincular a cuenta existente <span className="text-gray-400 font-normal">(perfil extra para usuario ya registrado)</span></label>
+                    <div className="sm:col-span-2 flex items-center gap-3 border border-blue-100 bg-blue-50 rounded-lg px-3 py-2.5">
+                      <input type="checkbox" id="vincular_cuenta_admin" checked={form.vincularCuenta} onChange={e => setForm({...form, vincularCuenta: e.target.checked, email: '', password: '', vincularEmail: ''})} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                      <label htmlFor="vincular_cuenta_admin" className="text-xs font-medium text-gray-700 cursor-pointer">Agregar perfil extra a cuenta existente <span className="text-gray-400 font-normal">(ya tiene login, solo se agrega un perfil nuevo)</span></label>
                     </div>
+
                     {form.vincularCuenta ? (
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Email de la cuenta existente</label>
-                        <input type="email" value={form.vincularEmail} onChange={e => setForm({...form, vincularEmail: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="usuario@furlong.com" required />
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Cuenta a vincular</label>
+                        <select value={form.vincularEmail} onChange={e => setForm({...form, vincularEmail: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                          <option value="">Seleccionar usuario existente...</option>
+                          {[...new Map(usuarios.map(u => [u.auth_user_id || u.id, u])).values()].map(u => (
+                            <option key={u.id} value={u.email}>{u.nombre} — {u.email}</option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-gray-400 mt-1">El nuevo perfil usará el mismo login que el usuario seleccionado.</p>
                       </div>
                     ) : (
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Contrasena</label>
-                        <input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Min. 6 caracteres" required={!editando && !form.vincularCuenta} />
-                      </div>
+                      <>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+                          <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Contrasena</label>
+                          <input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Min. 6 caracteres" required />
+                        </div>
+                      </>
                     )}
                   </>
                 )}
