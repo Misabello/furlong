@@ -131,30 +131,36 @@ export default function Reportes() {
     return adeudadas
   }
 
+  const normalizarMotivo = (s) =>
+    (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+
   const calcularFrancos = (empleadoId, francosSaldoAnterior = 0) => {
+    const clasificar = (motivo, acum) => {
+      const m = normalizarMotivo(motivo)
+      if (m === 'domingo/feriado trabajado') acum.favor += 1
+      else if (m === 'sabado pm trabajado') acum.favor += 0.5
+      else if (m === 'franco compensatorio') acum.tomados += 1
+      else if (m.startsWith('franco liquid')) acum.tomados += 1
+      else if (m === '1/2 dia franco') acum.tomados += 0.5
+    }
+
     // Histórico (años anteriores al reporte)
     const historicos = ausenciasHistoricas.filter(a => a.empleado_id === empleadoId)
-    let aFavorHist = 0, tomadosHist = 0
-    historicos.forEach(a => {
-      if (a.motivo === 'Domingo/Feriado Trabajado') aFavorHist += 1
-      else if (a.motivo === 'Sábado PM Trabajado') aFavorHist += 0.5
-      else if (a.motivo === 'Franco Compensatorio') tomadosHist += 1
-      else if (a.motivo === 'Franco Liquidado') tomadosHist += 1
-      else if (a.motivo === '1/2 Día Franco') tomadosHist += 0.5
-    })
-    const adeudados = Math.max(0, (francosSaldoAnterior + aFavorHist) - tomadosHist)
+    const hist = { favor: 0, tomados: 0 }
+    historicos.forEach(a => clasificar(a.motivo, hist))
+    const adeudados = Math.max(0, (francosSaldoAnterior + hist.favor) - hist.tomados)
 
     // Año del reporte
     const ausemp = ausenciasAnuales.filter(a => a.empleado_id === empleadoId)
-    let aFavor = 0, tomados = 0
-    ausemp.forEach(a => {
-      if (a.motivo === 'Domingo/Feriado Trabajado') aFavor += 1
-      else if (a.motivo === 'Sábado PM Trabajado') aFavor += 0.5
-      else if (a.motivo === 'Franco Compensatorio') tomados += 1
-      else if (a.motivo === 'Franco Liquidado') tomados += 1
-      else if (a.motivo === '1/2 Día Franco') tomados += 0.5
-    })
-    return { aFavor, tomados, adeudados, saldo: adeudados + aFavor - tomados }
+    const anual = { favor: 0, tomados: 0 }
+    ausemp.forEach(a => clasificar(a.motivo, anual))
+
+    return {
+      aFavor: anual.favor,
+      tomados: anual.tomados,
+      adeudados,
+      saldo: adeudados + anual.favor - anual.tomados
+    }
   }
 
   const ausenciasFiltradas = ausencias.filter(a => {
@@ -177,7 +183,8 @@ export default function Reportes() {
         motivos: {}
       }
       if (!mapa[emp.id].motivos[a.motivo]) mapa[emp.id].motivos[a.motivo] = 0
-      const esMedioDia = a.motivo === '1/2 Día Franco' || a.motivo === 'Sábado PM Trabajado'
+      const m = normalizarMotivo(a.motivo)
+      const esMedioDia = m === '1/2 dia franco' || m === 'sabado pm trabajado'
       mapa[emp.id].motivos[a.motivo] += esMedioDia ? 0.5 : 1
     })
     return Object.values(mapa).sort((a, b) => a.nombre.localeCompare(b.nombre))
