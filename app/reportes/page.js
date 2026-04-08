@@ -139,6 +139,7 @@ export default function Reportes() {
       if (a.motivo === 'Domingo/Feriado Trabajado') aFavorHist += 1
       else if (a.motivo === 'Sábado PM Trabajado') aFavorHist += 0.5
       else if (a.motivo === 'Franco Compensatorio') tomadosHist += 1
+      else if (a.motivo === 'Franco Liquidado') tomadosHist += 1
       else if (a.motivo === '1/2 Día Franco') tomadosHist += 0.5
     })
     const adeudados = Math.max(0, (francosSaldoAnterior + aFavorHist) - tomadosHist)
@@ -150,6 +151,7 @@ export default function Reportes() {
       if (a.motivo === 'Domingo/Feriado Trabajado') aFavor += 1
       else if (a.motivo === 'Sábado PM Trabajado') aFavor += 0.5
       else if (a.motivo === 'Franco Compensatorio') tomados += 1
+      else if (a.motivo === 'Franco Liquidado') tomados += 1
       else if (a.motivo === '1/2 Día Franco') tomados += 0.5
     })
     return { aFavor, tomados, adeudados, saldo: adeudados + aFavor - tomados }
