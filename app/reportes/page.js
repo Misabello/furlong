@@ -170,8 +170,9 @@ export default function Reportes() {
 
   const resumenPorEmpleado = () => {
     const mapa = {}
-    ausenciasFiltradas.forEach(a => {
+    ausenciasAnuales.forEach(a => {
       const emp = empleados.find(e => e.id === a.empleado_id)
+      if (filtroDept !== 'Todos' && emp?.departamento !== filtroDept) return
       if (!emp) return
       if (!mapa[emp.id]) mapa[emp.id] = {
         id: emp.id,

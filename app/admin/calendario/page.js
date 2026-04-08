@@ -20,7 +20,7 @@ export default function CalendarioAdmin() {
     const hoy = new Date()
     const lunes = new Date(hoy)
     lunes.setDate(hoy.getDate() - hoy.getDay() + 1 + offset * 7)
-    return Array.from({ length: 5 }, (_, i) => {
+    return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(lunes)
       d.setDate(lunes.getDate() + i)
       return d
@@ -29,7 +29,7 @@ export default function CalendarioAdmin() {
 
   const dias = getDiasSemana(semanaOffset)
   const fechaInicio = dias[0].toISOString().split('T')[0]
-  const fechaFin = dias[4].toISOString().split('T')[0]
+  const fechaFin = dias[6].toISOString().split('T')[0]
 
   useEffect(() => {
     const init = async () => {

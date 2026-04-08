@@ -46,7 +46,7 @@ export default function Supervisor() {
     const hoy = new Date()
     const lunes = new Date(hoy)
     lunes.setDate(hoy.getDate() - hoy.getDay() + 1 + offset * 7)
-    return Array.from({ length: 5 }, (_, i) => {
+    return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(lunes)
       d.setDate(lunes.getDate() + i)
       return d
@@ -55,7 +55,7 @@ export default function Supervisor() {
 
   const dias = getDiasSemana(semanaOffset)
   const fechaInicio = modoFiltro && filtroDesde ? filtroDesde : dias[0].toISOString().split('T')[0]
-  const fechaFin = modoFiltro && filtroHasta ? filtroHasta : dias[4].toISOString().split('T')[0]
+  const fechaFin = modoFiltro && filtroHasta ? filtroHasta : dias[6].toISOString().split('T')[0]
 
   const diasMostrar = modoFiltro && filtroDesde && filtroHasta
     ? (() => {
@@ -347,7 +347,7 @@ export default function Supervisor() {
             {!modoFiltro && (
               <div className="flex items-center justify-between bg-white rounded-xl shadow px-4 py-3 mb-4">
                 <button onClick={() => setSemanaOffset(s => s - 1)} className="text-blue-600 text-xs font-medium">← Anterior</button>
-                <p className="text-gray-700 text-xs font-medium">{formatFecha(dias[0])} - {formatFecha(dias[4])}</p>
+                <p className="text-gray-700 text-xs font-medium">{formatFecha(dias[0])} - {formatFecha(dias[6])}</p>
                 <button onClick={() => setSemanaOffset(s => s + 1)} className="text-blue-600 text-xs font-medium">Siguiente →</button>
               </div>
             )}
