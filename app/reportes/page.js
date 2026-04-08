@@ -175,7 +175,8 @@ export default function Reportes() {
         motivos: {}
       }
       if (!mapa[emp.id].motivos[a.motivo]) mapa[emp.id].motivos[a.motivo] = 0
-      mapa[emp.id].motivos[a.motivo]++
+      const esMedioDia = a.motivo === '1/2 Día Franco' || a.motivo === 'Sábado PM Trabajado'
+      mapa[emp.id].motivos[a.motivo] += esMedioDia ? 0.5 : 1
     })
     return Object.values(mapa).sort((a, b) => a.nombre.localeCompare(b.nombre))
   }
@@ -461,10 +462,10 @@ export default function Reportes() {
                             <td className="px-4 py-3">
                               <span className={cat.color + ' inline-block px-2 py-1 rounded-full text-xs font-medium'}>{cat.emoji} {motivo}</span>
                             </td>
-                            <td className="px-4 py-3 text-gray-600">{dias} dia{dias > 1 ? 's' : ''}</td>
+                            <td className="px-4 py-3 text-gray-600">{dias} dia{dias !== 1 ? 's' : ''}</td>
                             {mi === 0 && (
                               <>
-                                <td className="px-4 py-3 font-bold text-gray-800" rowSpan={motivos.length}>{total} dia{total > 1 ? 's' : ''}</td>
+                                <td className="px-4 py-3 font-bold text-gray-800" rowSpan={motivos.length}>{total} dia{total !== 1 ? 's' : ''}</td>
                                 <td className="px-4 py-3 font-semibold text-green-700 bg-green-50" rowSpan={motivos.length}>{vacDisp}</td>
                                 <td className="px-4 py-3 font-semibold text-teal-700 bg-teal-50" rowSpan={motivos.length}>{adeudadas}</td>
                                 <td className="px-4 py-3 font-semibold text-orange-700 bg-orange-50" rowSpan={motivos.length}>{vacTomadas}</td>
