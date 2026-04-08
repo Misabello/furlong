@@ -16,9 +16,11 @@ export default function Perfil() {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
-      const { data } = await supabase.from('usuarios').select('*').eq('id', user.id).single()
+      const profileId = localStorage.getItem('furlong_profile_id') || user.id
+      const { data } = await supabase.from('usuarios').select('*').eq('id', profileId).single()
+      if (!data) { localStorage.removeItem('furlong_profile_id'); router.push('/seleccionar-perfil'); return }
       setUsuario(data)
-      const { data: ausencias } = await supabase.from('ausencias').select('motivo').eq('empleado_id', user.id)
+      const { data: ausencias } = await supabase.from('ausencias').select('motivo').eq('empleado_id', data.id)
       if (ausencias) {
         const s = { total: ausencias.length, enfermedad: 0, vacaciones: 0, personal: 0 }
         ausencias.forEach(a => { s[a.motivo] = (s[a.motivo] || 0) + 1 })

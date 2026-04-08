@@ -28,10 +28,12 @@ export default function Empleado() {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
-      const { data } = await supabase.from('usuarios').select('*').eq('id', user.id).single()
+      const profileId = localStorage.getItem('furlong_profile_id') || user.id
+      const { data } = await supabase.from('usuarios').select('*').eq('id', profileId).single()
+      if (!data) { localStorage.removeItem('furlong_profile_id'); router.push('/seleccionar-perfil'); return }
       setUsuario(data)
-      cargarAusencias(user.id)
-      cargarAdjuntos(user.id)
+      cargarAusencias(data.id)
+      cargarAdjuntos(data.id)
     }
     init()
   }, [])
@@ -176,6 +178,10 @@ export default function Empleado() {
               <span>❓</span>
               <span className="hidden md:inline">Ayuda</span>
             </a>
+            <button onClick={() => router.push('/seleccionar-perfil')} className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium bg-white text-gray-600 hover:bg-gray-100 shadow-sm transition" title="Cambiar perfil">
+              <span>🔄</span>
+              <span className="hidden md:inline">Perfiles</span>
+            </button>
             <button onClick={() => router.push('/perfil')} className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium bg-white text-blue-600 hover:bg-gray-100 shadow-sm transition">
               <span>👤</span>
               <span className="hidden md:inline">Mi perfil</span>

@@ -84,7 +84,9 @@ export default function Supervisor() {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
-      const { data: sup } = await supabase.from('usuarios').select('*').eq('id', user.id).single()
+      const profileId = localStorage.getItem('furlong_profile_id') || user.id
+      const { data: sup } = await supabase.from('usuarios').select('*').eq('id', profileId).single()
+      if (!sup) { localStorage.removeItem('furlong_profile_id'); router.push('/seleccionar-perfil'); return }
       if (sup?.rol !== 'supervisor') { router.push('/empleado'); return }
       setUsuario(sup)
       let empList
@@ -92,13 +94,13 @@ export default function Supervisor() {
         const { data } = await supabase.from('usuarios').select('*').order('nombre')
         empList = data
       } else {
-        const { data: dept } = await supabase.from('departamentos').select('nombre').eq('supervisor_id', user.id).single()
+        const { data: dept } = await supabase.from('departamentos').select('nombre').eq('supervisor_id', sup.id).single()
         const { data } = await supabase.from('usuarios').select('*').eq('departamento', dept?.nombre)
         empList = data
       }
       setEmpleados(empList || [])
-      cargarMisAusencias(user.id)
-      cargarAdjuntosAus(user.id)
+      cargarMisAusencias(sup.id)
+      cargarAdjuntosAus(sup.id)
     }
     init()
   }, [])

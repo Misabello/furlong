@@ -15,7 +15,9 @@ export default function Usuarios() {
     fecha_ingreso: '',
     es_supervisor: false,
     vacaciones_saldo_anterior: '',
-    francos_saldo_anterior: ''
+    francos_saldo_anterior: '',
+    vincularCuenta: false,
+    vincularEmail: ''
   })
   const [editando, setEditando] = useState(null)
   const [mensaje, setMensaje] = useState('')
@@ -34,7 +36,9 @@ export default function Usuarios() {
   const verificarAcceso = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/'); return }
-    const { data } = await supabase.from('usuarios').select('rol').eq('id', user.id).single()
+    const profileId = localStorage.getItem('furlong_profile_id') || user.id
+    const { data } = await supabase.from('usuarios').select('rol').eq('id', profileId).single()
+    if (!data) { localStorage.removeItem('furlong_profile_id'); router.push('/seleccionar-perfil'); return }
     if (data?.rol !== 'supervisor') router.push('/empleado')
   }
 
@@ -92,7 +96,8 @@ export default function Usuarios() {
           fecha_ingreso: form.fecha_ingreso,
           supervisor_id,
           vacaciones_saldo_anterior: form.vacaciones_saldo_anterior !== '' ? Number(form.vacaciones_saldo_anterior) : null,
-          francos_saldo_anterior: form.francos_saldo_anterior !== '' ? Number(form.francos_saldo_anterior) : null
+          francos_saldo_anterior: form.francos_saldo_anterior !== '' ? Number(form.francos_saldo_anterior) : null,
+          ...(form.vincularCuenta && form.vincularEmail ? { vincularEmail: form.vincularEmail } : {})
         })
       })
       
@@ -150,7 +155,9 @@ export default function Usuarios() {
     fecha_ingreso: '',
     es_supervisor: false,
     vacaciones_saldo_anterior: '',
-    francos_saldo_anterior: ''
+    francos_saldo_anterior: '',
+    vincularCuenta: false,
+    vincularEmail: ''
   })
 
   return (
@@ -177,10 +184,23 @@ export default function Usuarios() {
               <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} disabled={!!editando} className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" placeholder="juan@furlong.com" required={!editando} />
             </div>
             {!editando && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Contrasena</label>
-                <input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Min. 6 caracteres" required={!editando} />
-              </div>
+              <>
+                <div className="md:col-span-2 flex items-center gap-3">
+                  <input type="checkbox" id="vincular_cuenta" checked={form.vincularCuenta} onChange={e => setForm({...form, vincularCuenta: e.target.checked, password: ''})} className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                  <label htmlFor="vincular_cuenta" className="text-sm font-medium text-gray-700 cursor-pointer">Vincular a cuenta existente <span className="text-gray-400 font-normal text-xs">(agregar perfil extra a un usuario ya registrado)</span></label>
+                </div>
+                {form.vincularCuenta ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email de la cuenta existente</label>
+                    <input type="email" value={form.vincularEmail} onChange={e => setForm({...form, vincularEmail: e.target.value})} className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="usuario@furlong.com" required />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Contrasena</label>
+                    <input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Min. 6 caracteres" required={!editando && !form.vincularCuenta} />
+                  </div>
+                )}
+              </>
             )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Departamento</label>
