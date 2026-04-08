@@ -21,6 +21,7 @@ export default function Admin() {
   const [semanaOffset, setSemanaOffset] = useState(0)
   const [filtroDept, setFiltroDept] = useState('Todos')
   const [filtroMotivo, setFiltroMotivo] = useState('todos')
+  const [busquedaUsuario, setBusquedaUsuario] = useState('')
   const [filtroDesde, setFiltroDesde] = useState('')
   const [filtroHasta, setFiltroHasta] = useState('')
   const [modoFiltro, setModoFiltro] = useState(false)
@@ -232,9 +233,11 @@ export default function Admin() {
     return adjuntosCalendario.find(a => a.empleado_id === empleadoId && a.fecha_desde <= fechaStr && (a.fecha_hasta || a.fecha_desde) >= fechaStr)
   }
 
-  const empleadosFiltrados = usuarios.filter(u =>
-    filtroDept === 'Todos' || u.departamento === filtroDept
-  )
+  const empleadosFiltrados = usuarios.filter(u => {
+    if (filtroDept !== 'Todos' && u.departamento !== filtroDept) return false
+    if (busquedaUsuario.trim() && !u.nombre?.toLowerCase().includes(busquedaUsuario.toLowerCase().trim())) return false
+    return true
+  })
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -440,6 +443,10 @@ export default function Admin() {
           <>
             <div className="bg-white rounded-xl shadow px-4 py-3 mb-4">
               <div className="flex flex-wrap gap-3 items-end">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Usuario</label>
+                  <input type="text" value={busquedaUsuario} onChange={e => setBusquedaUsuario(e.target.value)} placeholder="Buscar por nombre..." className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-44" />
+                </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Departamento</label>
                   <select value={filtroDept} onChange={e => setFiltroDept(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
