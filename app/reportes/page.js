@@ -19,6 +19,7 @@ export default function Reportes() {
   const [anioReporte, setAnioReporte] = useState(new Date().getFullYear())
   const [filtroDept, setFiltroDept] = useState('Todos')
   const [filtroMotivo, setFiltroMotivo] = useState('todos')
+  const [filtroUsuario, setFiltroUsuario] = useState('')
   const [filtroDesde, setFiltroDesde] = useState(formatDate(hoy))
   const [filtroHasta, setFiltroHasta] = useState(formatDate(dosSemanasAdelante))
   const [loading, setLoading] = useState(false)
@@ -165,7 +166,9 @@ export default function Reportes() {
 
   const ausenciasFiltradas = ausencias.filter(a => {
     const emp = empleados.find(e => e.id === a.empleado_id)
-    return filtroDept === 'Todos' || emp?.departamento === filtroDept
+    if (filtroDept !== 'Todos' && emp?.departamento !== filtroDept) return false
+    if (filtroUsuario.trim() && !emp?.nombre?.toLowerCase().includes(filtroUsuario.toLowerCase().trim())) return false
+    return true
   })
 
   const resumenPorEmpleado = () => {
@@ -173,6 +176,7 @@ export default function Reportes() {
     ausenciasAnuales.forEach(a => {
       const emp = empleados.find(e => e.id === a.empleado_id)
       if (filtroDept !== 'Todos' && emp?.departamento !== filtroDept) return
+      if (filtroUsuario.trim() && !emp?.nombre?.toLowerCase().includes(filtroUsuario.toLowerCase().trim())) return
       if (!emp) return
       if (!mapa[emp.id]) mapa[emp.id] = {
         id: emp.id,
@@ -323,7 +327,7 @@ export default function Reportes() {
 
         {/* Filtros */}
         <div className="bg-white rounded-xl shadow p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Desde</label>
               <input type="date" value={filtroDesde} onChange={e => setFiltroDesde(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -344,6 +348,10 @@ export default function Reportes() {
                 <option value="todos">Todos</option>
                 {categorias.map(c => <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>)}
               </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Usuario</label>
+              <input type="text" value={filtroUsuario} onChange={e => setFiltroUsuario(e.target.value)} placeholder="Nombre y apellido..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
           </div>
           <div className="flex gap-3 justify-end flex-wrap">

@@ -46,6 +46,10 @@ export default function Admin() {
   const [editCalDescripcion, setEditCalDescripcion] = useState('')
   const [editCalFecha, setEditCalFecha] = useState('')
   const [editCalLoading, setEditCalLoading] = useState(false)
+  const [paraColaborador, setParaColaborador] = useState(false)
+  const [empColaboradorId, setEmpColaboradorId] = useState('')
+  const [bajaUsuarioId, setBajaUsuarioId] = useState(null)
+  const [bajaFecha, setBajaFecha] = useState('')
   const { categorias } = useCategorias()
   const router = useRouter()
 
@@ -151,22 +155,19 @@ export default function Admin() {
     e.preventDefault()
     setLoadingAus(true)
     setMensajeAus('')
+    const destinatarioId = paraColaborador && empColaboradorId ? empColaboradorId : usuario.id
     const hasta = usarRangoAus && fechaHastaAus ? fechaHastaAus : fechaDesdeAus
     const fechas = generarFechas(fechaDesdeAus, hasta)
     if (fechas.length === 0) { setLoadingAus(false); return }
-    const { data: conflictos, error: errConflictos } = await supabase.from('ausencias').select('fecha').eq('empleado_id', usuario.id).in('fecha', fechas)
-    if (errConflictos) {
-      setMensajeAus('Error al verificar ausencias existentes. Intentá de nuevo.')
-      setLoadingAus(false)
-      return
-    }
+    const { data: conflictos, error: errConflictos } = await supabase.from('ausencias').select('fecha').eq('empleado_id', destinatarioId).in('fecha', fechas)
+    if (errConflictos) { setMensajeAus('Error al verificar ausencias existentes. Intentá de nuevo.'); setLoadingAus(false); return }
     if (conflictos.length > 0) {
-      setMensajeAus('Ya tenes ausencias registradas en: ' + conflictos.map(c => new Date(c.fecha + 'T12:00:00').toLocaleDateString('es-AR')).join(', '))
+      setMensajeAus('Ya hay ausencias en: ' + conflictos.map(c => new Date(c.fecha + 'T12:00:00').toLocaleDateString('es-AR')).join(', '))
       setLoadingAus(false)
       return
     }
     const bsas = getBsasTime()
-    const registros = fechas.map(f => ({ empleado_id: usuario.id, fecha: f, motivo: motivoAus, descripcion: descripcionAus, fecha_carga: bsas.toISOString() }))
+    const registros = fechas.map(f => ({ empleado_id: destinatarioId, fecha: f, motivo: motivoAus, descripcion: descripcionAus, fecha_carga: bsas.toISOString() }))
     const { error } = await supabase.from('ausencias').insert(registros)
     if (error) { setMensajeAus('Error al registrar.') }
     else {
@@ -174,11 +175,11 @@ export default function Admin() {
       setFechaDesdeAus('')
       setFechaHastaAus('')
       setDescripcionAus('')
-      cargarMisAusencias(usuario.id)
+      if (!paraColaborador) cargarMisAusencias(usuario.id)
       fetch('/api/google/evento', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: usuario.id, fechaDesde: fechaDesdeAus, fechaHasta: hasta, motivo: motivoAus, descripcion: descripcionAus }),
+        body: JSON.stringify({ userId: destinatarioId, fechaDesde: fechaDesdeAus, fechaHasta: hasta, motivo: motivoAus, descripcion: descripcionAus }),
       }).catch(() => {})
     }
     setLoadingAus(false)
@@ -240,6 +241,20 @@ export default function Admin() {
     if (!data.ok) {
       alert('Error al eliminar: ' + data.error)
     }
+    cargarUsuarios()
+  }
+
+  const handleDarDeBaja = async (id) => {
+    if (!bajaFecha) { alert('Selecciona una fecha de baja.'); return }
+    await supabase.from('usuarios').update({ fecha_baja: bajaFecha }).eq('id', id)
+    setBajaUsuarioId(null)
+    setBajaFecha('')
+    cargarUsuarios()
+  }
+
+  const handleReactivar = async (id) => {
+    if (!confirm('Reactivar este usuario?')) return
+    await supabase.from('usuarios').update({ fecha_baja: null }).eq('id', id)
     cargarUsuarios()
   }
 
@@ -480,6 +495,13 @@ export default function Admin() {
             <div className="bg-white rounded-xl shadow p-4 mb-4">
               <h2 className="text-base font-semibold text-gray-700 mb-3">Registrar ausencia</h2>
               <form onSubmit={handleSubmitAusencia} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Para</label>
+                  <select value={paraColaborador ? empColaboradorId : ''} onChange={e => { if (e.target.value === '') { setParaColaborador(false); setEmpColaboradorId('') } else { setParaColaborador(true); setEmpColaboradorId(e.target.value) } }} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white">
+                    <option value="">Yo mismo</option>
+                    {usuarios.filter(u => u.id !== usuario?.id).map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+                  </select>
+                </div>
                 <div className="flex items-center gap-3">
                   <button type="button" onClick={() => { setUsarRangoAus(!usarRangoAus); setFechaHastaAus('') }} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${usarRangoAus ? 'bg-blue-600' : 'bg-gray-200'}`}>
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${usarRangoAus ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -688,20 +710,40 @@ export default function Admin() {
                     <th className="text-left px-3 py-2 text-gray-600 font-semibold hidden sm:table-cell">Email</th>
                     <th className="text-left px-3 py-2 text-gray-600 font-semibold hidden sm:table-cell">Depto.</th>
                     <th className="text-left px-3 py-2 text-gray-600 font-semibold">Rol</th>
+                    <th className="text-left px-3 py-2 text-gray-600 font-semibold">Estado</th>
                     <th className="px-3 py-2"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {usuarios.map(u => (
-                    <tr key={u.id} className="border-b hover:bg-gray-50">
+                    <tr key={u.id} className={`border-b hover:bg-gray-50 ${u.fecha_baja ? 'opacity-60 bg-gray-50' : ''}`}>
                       <td className="px-3 py-2 font-medium text-gray-700">{u.nombre.split(',')[0]}</td>
                       <td className="px-3 py-2 text-gray-500 hidden sm:table-cell">{u.email}</td>
                       <td className="px-3 py-2 text-gray-500 hidden sm:table-cell">{u.departamento || '-'}</td>
                       <td className="px-3 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${rolColor[u.rol]}`}>{u.rol}</span></td>
                       <td className="px-3 py-2">
-                        <div className="flex gap-2">
-                          <button onClick={() => handleEditar(u)} className="text-blue-600 hover:underline">Editar</button>
-                          <button onClick={() => handleEliminar(u.id)} className="text-red-500 hover:underline">Eliminar</button>
+                        {u.fecha_baja
+                          ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Baja {new Date(u.fecha_baja + 'T12:00:00').toLocaleDateString('es-AR')}</span>
+                          : <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Activo</span>
+                        }
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex gap-2 flex-wrap">
+                            <button onClick={() => handleEditar(u)} className="text-blue-600 hover:underline">Editar</button>
+                            <button onClick={() => handleEliminar(u.id)} className="text-red-500 hover:underline">Eliminar</button>
+                            {u.fecha_baja
+                              ? <button onClick={() => handleReactivar(u.id)} className="text-green-600 hover:underline">Reactivar</button>
+                              : <button onClick={() => { setBajaUsuarioId(u.id); setBajaFecha('') }} className="text-orange-600 hover:underline">Dar de baja</button>
+                            }
+                          </div>
+                          {bajaUsuarioId === u.id && (
+                            <div className="flex gap-2 items-center mt-1">
+                              <input type="date" value={bajaFecha} onChange={e => setBajaFecha(e.target.value)} className="border border-gray-300 rounded px-2 py-1 text-xs" />
+                              <button onClick={() => handleDarDeBaja(u.id)} className="text-xs bg-orange-600 text-white px-2 py-1 rounded hover:bg-orange-700">Confirmar</button>
+                              <button onClick={() => setBajaUsuarioId(null)} className="text-xs text-gray-500 hover:underline">Cancelar</button>
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>

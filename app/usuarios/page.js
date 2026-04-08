@@ -21,6 +21,8 @@ export default function Usuarios() {
   const [mensaje, setMensaje] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [bajaUsuarioId, setBajaUsuarioId] = useState(null)
+  const [bajaFecha, setBajaFecha] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -126,6 +128,20 @@ export default function Usuarios() {
     cargarUsuarios()
   }
 
+  const handleDarDeBaja = async (id) => {
+    if (!bajaFecha) { alert('Selecciona una fecha de baja.'); return }
+    await supabase.from('usuarios').update({ fecha_baja: bajaFecha }).eq('id', id)
+    setBajaUsuarioId(null)
+    setBajaFecha('')
+    cargarUsuarios()
+  }
+
+  const handleReactivar = async (id) => {
+    if (!confirm('Reactivar este usuario?')) return
+    await supabase.from('usuarios').update({ fecha_baja: null }).eq('id', id)
+    cargarUsuarios()
+  }
+
   const resetForm = () => setForm({
     nombre: '',
     email: '',
@@ -214,15 +230,16 @@ export default function Usuarios() {
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold">Departamento</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold">Ingreso</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold">Rol</th>
+                <th className="text-left px-4 py-3 text-gray-600 font-semibold">Estado</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
               {usuarios.length === 0 ? (
-                <tr><td colSpan={6} className="text-center text-gray-400 py-8">No hay usuarios todavia.</td></tr>
+                <tr><td colSpan={7} className="text-center text-gray-400 py-8">No hay usuarios todavia.</td></tr>
               ) : (
                 usuarios.map(u => (
-                  <tr key={u.id} className="border-b hover:bg-gray-50">
+                  <tr key={u.id} className={`border-b hover:bg-gray-50 ${u.fecha_baja ? 'opacity-60 bg-gray-50' : ''}`}>
                     <td className="px-4 py-3 font-medium text-gray-700">{u.nombre}</td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{u.email}</td>
                     <td className="px-4 py-3 text-gray-500">{u.departamento || '-'}</td>
@@ -233,9 +250,28 @@ export default function Usuarios() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <button onClick={() => handleEditar(u)} className="text-blue-600 hover:underline text-xs">Editar</button>
-                        <button onClick={() => handleEliminar(u.id)} className="text-red-500 hover:underline text-xs">Eliminar</button>
+                      {u.fecha_baja
+                        ? <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">Baja {new Date(u.fecha_baja + 'T12:00:00').toLocaleDateString('es-AR')}</span>
+                        : <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Activo</span>
+                      }
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex gap-2">
+                          <button onClick={() => handleEditar(u)} className="text-blue-600 hover:underline text-xs">Editar</button>
+                          <button onClick={() => handleEliminar(u.id)} className="text-red-500 hover:underline text-xs">Eliminar</button>
+                          {u.fecha_baja
+                            ? <button onClick={() => handleReactivar(u.id)} className="text-green-600 hover:underline text-xs">Reactivar</button>
+                            : <button onClick={() => { setBajaUsuarioId(u.id); setBajaFecha('') }} className="text-orange-600 hover:underline text-xs">Dar de baja</button>
+                          }
+                        </div>
+                        {bajaUsuarioId === u.id && (
+                          <div className="flex gap-2 items-center mt-1">
+                            <input type="date" value={bajaFecha} onChange={e => setBajaFecha(e.target.value)} className="border border-gray-300 rounded px-2 py-1 text-xs" />
+                            <button onClick={() => handleDarDeBaja(u.id)} className="text-xs bg-orange-600 text-white px-2 py-1 rounded hover:bg-orange-700">Confirmar</button>
+                            <button onClick={() => setBajaUsuarioId(null)} className="text-xs text-gray-500 hover:underline">Cancelar</button>
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>
