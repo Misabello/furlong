@@ -33,9 +33,7 @@ export default function Reportes() {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
-      const profileId = localStorage.getItem('furlong_profile_id') || user.id
-      const { data: sup } = await supabase.from('usuarios').select('*').eq('id', profileId).single()
-      if (!sup) { localStorage.removeItem('furlong_profile_id'); router.push('/seleccionar-perfil'); return }
+      const { data: sup } = await supabase.from('usuarios').select('*').eq('id', user.id).single()
       if (sup?.rol !== 'supervisor' && sup?.rol !== 'admin') { router.push('/empleado'); return }
       setUsuario(sup)
       const { data: emps } = await supabase.from('usuarios').select('*').order('nombre')

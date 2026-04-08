@@ -35,9 +35,7 @@ export default function CalendarioAdmin() {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
-      const profileId = localStorage.getItem('furlong_profile_id') || user.id
-      const { data } = await supabase.from('usuarios').select('rol').eq('id', profileId).single()
-      if (!data) { localStorage.removeItem('furlong_profile_id'); router.push('/seleccionar-perfil'); return }
+      const { data } = await supabase.from('usuarios').select('rol').eq('id', user.id).single()
       if (data?.rol !== 'admin') { router.push('/'); return }
       const { data: emps } = await supabase.from('usuarios').select('*').neq('rol', 'admin').order('departamento').order('nombre')
       setEmpleados(emps || [])

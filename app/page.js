@@ -26,8 +26,27 @@ export default function Login() {
         return
       }
 
-      localStorage.removeItem('furlong_profile_id')
-      router.push('/seleccionar-perfil')
+      const { data: usuario, error: errorUsuario } = await supabase
+        .from('usuarios')
+        .select('rol')
+        .eq('id', data.user.id)
+        .single()
+
+      if (errorUsuario || !usuario) {
+        console.error('Error al obtener usuario:', errorUsuario)
+        setError('Tu cuenta no está configurada correctamente. Contactá al administrador.')
+        await supabase.auth.signOut()
+        setLoading(false)
+        return
+      }
+
+      if (usuario.rol === 'admin') {
+        router.push('/admin')
+      } else if (usuario.rol === 'supervisor') {
+        router.push('/supervisor')
+      } else {
+        router.push('/empleado')
+      }
     } catch (err) {
       console.error('Error inesperado en login:', err)
       setError('Ocurrió un error inesperado. Intentá de nuevo.')
