@@ -120,7 +120,7 @@ export default function Supervisor() {
       const ids = empleados.map(e => e.id)
       let query = supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin)
       if (filtroMotivo !== 'todos') query = query.eq('motivo', filtroMotivo)
-      const [{ data }, { data: adj }] = await Promise.all([query, supabase.from('adjuntos').select('*').in('empleado_id', ids)])
+      const [{ data }, adj] = await Promise.all([query, fetch(`/api/adjuntos?empleadoIds=${ids.join(',')}`).then(r => r.json())])
       setAusencias(data || [])
       setAdjuntosCalendario(adj || [])
     }
@@ -133,7 +133,7 @@ export default function Supervisor() {
   }
 
   const cargarAdjuntosAus = async (id) => {
-    const { data } = await supabase.from('adjuntos').select('*').eq('empleado_id', id)
+    const data = await fetch(`/api/adjuntos?empleadoId=${id}`).then(r => r.json())
     setAdjuntosAus(data || [])
   }
 

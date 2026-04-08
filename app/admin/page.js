@@ -121,7 +121,7 @@ export default function Admin() {
     let query = supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin)
     if (filtroMotivo !== 'todos') query = query.eq('motivo', filtroMotivo)
     query.then(({ data }) => setAusencias(data || []))
-    supabase.from('adjuntos').select('*').in('empleado_id', ids).then(({ data }) => setAdjuntosCalendario(data || []))
+    fetch(`/api/adjuntos?empleadoIds=${ids.join(',')}`).then(r => r.json()).then(data => setAdjuntosCalendario(data || []))
   }, [usuarios, semanaOffset, filtroMotivo, filtroDesde, filtroHasta, modoFiltro])
 
   const cargarUsuarios = async () => {
@@ -135,9 +135,9 @@ export default function Admin() {
   }
 
   const cargarMisAusencias = async (id) => {
-    const [{ data }, { data: adj }] = await Promise.all([
+    const [{ data }, adj] = await Promise.all([
       supabase.from('ausencias').select('*').eq('empleado_id', id).order('fecha', { ascending: false }),
-      supabase.from('adjuntos').select('*').eq('empleado_id', id)
+      fetch(`/api/adjuntos?empleadoId=${id}`).then(r => r.json())
     ])
     setMisAusencias(data || [])
     setAdjuntosAus(adj || [])

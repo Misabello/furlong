@@ -49,7 +49,7 @@ export default function Empleado() {
   }
 
   const cargarAdjuntos = async (id) => {
-    const { data } = await supabase.from('adjuntos').select('*').eq('empleado_id', id)
+    const data = await fetch(`/api/adjuntos?empleadoId=${id}`).then(r => r.json())
     setAdjuntos(data || [])
   }
 

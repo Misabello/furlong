@@ -50,9 +50,9 @@ export default function CalendarioAdmin() {
     if (empleados.length === 0) return
     const cargarAusencias = async () => {
       const ids = empleados.map(e => e.id)
-      const [{ data }, { data: adj }] = await Promise.all([
+      const [{ data }, adj] = await Promise.all([
         supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin),
-        supabase.from('adjuntos').select('*').in('empleado_id', ids)
+        fetch(`/api/adjuntos?empleadoIds=${ids.join(',')}`).then(r => r.json())
       ])
       setAusencias(data || [])
       setAdjuntos(adj || [])
