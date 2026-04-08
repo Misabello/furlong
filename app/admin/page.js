@@ -41,6 +41,11 @@ export default function Admin() {
   const [misAusFiltroDesde, setMisAusFiltroDesde] = useState('')
   const [misAusFiltroHasta, setMisAusFiltroHasta] = useState('')
   const [misAusFiltroMotivo, setMisAusFiltroMotivo] = useState('todos')
+  const [editandoCal, setEditandoCal] = useState(null)
+  const [editCalMotivo, setEditCalMotivo] = useState('')
+  const [editCalDescripcion, setEditCalDescripcion] = useState('')
+  const [editCalFecha, setEditCalFecha] = useState('')
+  const [editCalLoading, setEditCalLoading] = useState(false)
   const { categorias } = useCategorias()
   const router = useRouter()
 
@@ -276,6 +281,37 @@ export default function Admin() {
     cargarMisAusencias(usuario.id)
   }
 
+  const recargarAusencias = async () => {
+    const ids = usuarios.map(u => u.id)
+    if (ids.length === 0) return
+    let q = supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin)
+    if (filtroMotivo !== 'todos') q = q.eq('motivo', filtroMotivo)
+    const { data } = await q
+    setAusencias(data || [])
+  }
+
+  const abrirEditCal = (ausencia) => {
+    setEditandoCal(ausencia)
+    setEditCalMotivo(ausencia.motivo)
+    setEditCalDescripcion(ausencia.descripcion || '')
+    setEditCalFecha(ausencia.fecha)
+  }
+
+  const handleGuardarCalModal = async () => {
+    setEditCalLoading(true)
+    await supabase.from('ausencias').update({ motivo: editCalMotivo, descripcion: editCalDescripcion, fecha: editCalFecha }).eq('id', editandoCal.id)
+    setEditandoCal(null)
+    await recargarAusencias()
+    setEditCalLoading(false)
+  }
+
+  const handleEliminarCalModal = async () => {
+    if (!confirm('¿Eliminar esta ausencia?')) return
+    await supabase.from('ausencias').delete().eq('id', editandoCal.id)
+    setEditandoCal(null)
+    await recargarAusencias()
+  }
+
   const supervisores = usuarios.filter(u => u.rol === 'supervisor')
   const rolColor = { admin: 'bg-red-100 text-red-700', supervisor: 'bg-purple-100 text-purple-700', empleado: 'bg-blue-100 text-blue-700' }
   const deptos = ['Todos', ...departamentos.map(d => d.nombre)]
@@ -416,7 +452,12 @@ export default function Admin() {
                           return (
                             <td key={i} className="px-2 py-2 text-center">
                               {ausencia ? (
-                                <span className={cat.color + ' inline-block px-1.5 py-0.5 rounded-full font-medium'} style={{fontSize:'10px'}}>
+                                <span
+                                  className={cat.color + ' inline-block px-1.5 py-0.5 rounded-full font-medium cursor-pointer hover:opacity-75'}
+                                  style={{fontSize:'10px'}}
+                                  title="Clic para editar"
+                                  onClick={() => abrirEditCal(ausencia)}
+                                >
                                   {cat.emoji} {ausencia.motivo}
                                 </span>
                               ) : (
@@ -699,6 +740,42 @@ export default function Admin() {
 
 
       </div>
+
+      {editandoCal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
+            <h3 className="text-base font-semibold text-gray-800 mb-1">Editar ausencia</h3>
+            <p className="text-xs text-gray-500 mb-4">{usuarios.find(u => u.id === editandoCal.empleado_id)?.nombre?.split(',')[0]}</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Fecha</label>
+                <input type="date" value={editCalFecha} onChange={e => setEditCalFecha(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Motivo</label>
+                <select value={editCalMotivo} onChange={e => setEditCalMotivo(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {categorias.map(c => <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Descripcion</label>
+                <textarea value={editCalDescripcion} onChange={e => setEditCalDescripcion(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Opcional..." />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button onClick={handleGuardarCalModal} disabled={editCalLoading} className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50">
+                {editCalLoading ? 'Guardando...' : 'Guardar'}
+              </button>
+              <button onClick={handleEliminarCalModal} disabled={editCalLoading} className="px-4 py-2 rounded-lg text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 transition disabled:opacity-50">
+                Eliminar
+              </button>
+              <button onClick={() => setEditandoCal(null)} disabled={editCalLoading} className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
