@@ -5,7 +5,7 @@ const FOLDER_ID = '1i79Eg3aw4MGPjc2uZmRwDmYfFiyUMz_L'
 async function getAdminToken() {
   const { data } = await supabaseAdmin
     .from('usuarios')
-    .select('id, google_access_token, google_refresh_token, google_token_expiry')
+    .select('id, email, google_access_token, google_refresh_token, google_token_expiry')
     .eq('rol', 'admin')
     .not('google_access_token', 'is', null)
     .limit(1)
@@ -76,7 +76,8 @@ export async function POST(request) {
 
   if (!uploadRes.ok) {
     const err = await uploadRes.json()
-    return Response.json({ ok: false, reason: err?.error?.message || 'upload_error' }, { status: 500 })
+    console.error('Drive upload error:', JSON.stringify(err))
+    return Response.json({ ok: false, reason: err?.error?.message || 'upload_error', adminEmail: data?.email }, { status: 500 })
   }
 
   const uploaded = await uploadRes.json()
