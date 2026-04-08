@@ -14,6 +14,9 @@ export default function Reportes() {
   const [empleados, setEmpleados] = useState([])
   const [departamentos, setDepartamentos] = useState([])
   const [ausencias, setAusencias] = useState([])
+  const [ausenciasAnuales, setAusenciasAnuales] = useState([])
+  const [ausenciasHistoricas, setAusenciasHistoricas] = useState([])
+  const [anioReporte, setAnioReporte] = useState(new Date().getFullYear())
   const [filtroDept, setFiltroDept] = useState('Todos')
   const [filtroMotivo, setFiltroMotivo] = useState('todos')
   const [filtroDesde, setFiltroDesde] = useState(formatDate(hoy))
@@ -44,42 +47,135 @@ export default function Reportes() {
     if (!filtroDesde || !filtroHasta) { alert('Por favor selecciona fecha desde y hasta.'); return }
     setLoading(true)
     setBuscado(true)
+
+    const anio = new Date(filtroDesde + 'T12:00:00').getFullYear()
+    setAnioReporte(anio)
+
     const ids = empleados.filter(e => filtroDept === 'Todos' || e.departamento === filtroDept).map(e => e.id)
+
     let query = supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', filtroDesde).lte('fecha', filtroHasta)
     if (filtroMotivo !== 'todos') query = query.eq('motivo', filtroMotivo)
-    const { data } = await query.order('fecha', { ascending: false })
+
+    const yearStart = `${anio}-01-01`
+    const yearEnd = `${anio}-12-31`
+
+    const [{ data }, { data: anualesData }, { data: historicasData }] = await Promise.all([
+      query.order('fecha', { ascending: false }),
+      supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', yearStart).lte('fecha', yearEnd),
+      supabase.from('ausencias').select('*').in('empleado_id', ids).lte('fecha', `${anio - 1}-12-31`)
+    ])
+
     setAusencias(data || [])
+    setAusenciasAnuales(anualesData || [])
+    setAusenciasHistoricas(historicasData || [])
     setLoading(false)
   }
 
   const getCat = (nombre) => categorias.find(c => c.nombre === nombre) || { emoji: '📝', color: 'bg-gray-100 text-gray-600' }
 
-  const calcularDiasVacaciones = (fechaIngreso) => {
+  // Cuenta lunes a viernes entre dos fechas (inclusive)
+  const contarDiasHabiles = (desde, hasta) => {
+    let count = 0
+    const d = new Date(desde)
+    const h = new Date(hasta)
+    while (d <= h) {
+      const dia = d.getDay()
+      if (dia !== 0 && dia !== 6) count++
+      d.setDate(d.getDate() + 1)
+    }
+    return count
+  }
+
+  const calcularDiasVacaciones = (fechaIngreso, anio) => {
     if (!fechaIngreso) return 0
-    const anios = (new Date() - new Date(fechaIngreso)) / (365.25 * 24 * 60 * 60 * 1000)
-    if (anios < 5) return 14
-    if (anios < 10) return 21
-    if (anios < 20) return 28
+    const ingreso = new Date(fechaIngreso + 'T12:00:00')
+    const anioIngreso = ingreso.getFullYear()
+    const mesIngreso = ingreso.getMonth() + 1 // 1-12
+
+    if (anioIngreso === anio) {
+      // Primer año: antes del 01/07 → 14 días completos
+      if (mesIngreso < 7) return 14
+      // Desde 01/07 en adelante → proporcional: 1 día cada 20 hábiles
+      const finAnio = new Date(`${anio}-12-31T12:00:00`)
+      const habiles = contarDiasHabiles(ingreso, finAnio)
+      return Math.floor(habiles / 20)
+    }
+
+    // Años siguientes: tabla por antigüedad
+    const anos = anio - anioIngreso
+    if (anos < 5) return 14
+    if (anos < 10) return 21
+    if (anos < 20) return 28
     return 35
   }
 
   const esVacacion = (motivo) => motivo?.toLowerCase().includes('vacaci')
+
+  const calcularAdeudadas = (emp) => {
+    // Saldo cargado manualmente para empleados pre-sistema
+    let adeudadas = emp.saldoAnterior ?? 0
+    if (!emp.fechaIngreso) return adeudadas
+    const ingreso = new Date(emp.fechaIngreso + 'T12:00:00')
+    const anioIngreso = ingreso.getFullYear()
+    for (let y = anioIngreso; y < anioReporte; y++) {
+      const entitlement = calcularDiasVacaciones(emp.fechaIngreso, y)
+      const tomadas = ausenciasHistoricas.filter(a =>
+        a.empleado_id === emp.id &&
+        esVacacion(a.motivo) &&
+        a.fecha >= `${y}-01-01` &&
+        a.fecha <= `${y}-12-31`
+      ).length
+      const saldo = entitlement - tomadas
+      if (saldo > 0) adeudadas += saldo
+    }
+    return adeudadas
+  }
+
+  const calcularFrancos = (empleadoId, francosSaldoAnterior = 0) => {
+    // Histórico (años anteriores al reporte)
+    const historicos = ausenciasHistoricas.filter(a => a.empleado_id === empleadoId)
+    let aFavorHist = 0, tomadosHist = 0
+    historicos.forEach(a => {
+      if (a.motivo === 'Domingo/Feriado Trabajado') aFavorHist += 1
+      else if (a.motivo === 'Sábado PM Trabajado') aFavorHist += 0.5
+      else if (a.motivo === 'Franco Compensatorio') tomadosHist += 1
+      else if (a.motivo === '1/2 Día Franco') tomadosHist += 0.5
+    })
+    const adeudados = Math.max(0, (francosSaldoAnterior + aFavorHist) - tomadosHist)
+
+    // Año del reporte
+    const ausemp = ausenciasAnuales.filter(a => a.empleado_id === empleadoId)
+    let aFavor = 0, tomados = 0
+    ausemp.forEach(a => {
+      if (a.motivo === 'Domingo/Feriado Trabajado') aFavor += 1
+      else if (a.motivo === 'Sábado PM Trabajado') aFavor += 0.5
+      else if (a.motivo === 'Franco Compensatorio') tomados += 1
+      else if (a.motivo === '1/2 Día Franco') tomados += 0.5
+    })
+    return { aFavor, tomados, adeudados, saldo: adeudados + aFavor - tomados }
+  }
 
   const ausenciasFiltradas = ausencias.filter(a => {
     const emp = empleados.find(e => e.id === a.empleado_id)
     return filtroDept === 'Todos' || emp?.departamento === filtroDept
   })
 
-  // Agrupar por empleado y motivo
   const resumenPorEmpleado = () => {
     const mapa = {}
     ausenciasFiltradas.forEach(a => {
       const emp = empleados.find(e => e.id === a.empleado_id)
       if (!emp) return
-      if (!mapa[emp.id]) mapa[emp.id] = { nombre: emp.nombre, departamento: emp.departamento, fechaIngreso: emp.fecha_ingreso, motivos: {}, vacTomadas: 0 }
+      if (!mapa[emp.id]) mapa[emp.id] = {
+        id: emp.id,
+        nombre: emp.nombre,
+        departamento: emp.departamento,
+        fechaIngreso: emp.fecha_ingreso,
+        saldoAnterior: emp.vacaciones_saldo_anterior ?? 0,
+        francosSaldoAnterior: emp.francos_saldo_anterior ?? 0,
+        motivos: {}
+      }
       if (!mapa[emp.id].motivos[a.motivo]) mapa[emp.id].motivos[a.motivo] = 0
       mapa[emp.id].motivos[a.motivo]++
-      if (esVacacion(a.motivo)) mapa[emp.id].vacTomadas++
     })
     return Object.values(mapa).sort((a, b) => a.nombre.localeCompare(b.nombre))
   }
@@ -92,7 +188,6 @@ export default function Reportes() {
     .slice(0, 5)
 
   const detalleAgrupado = () => {
-    // Agrupar por empleado + motivo + descripcion
     const mapa = {}
     ausenciasFiltradas.forEach(a => {
       const k = `${a.empleado_id}|${a.motivo}|${a.descripcion || ''}`
@@ -102,7 +197,6 @@ export default function Reportes() {
 
     const resultado = []
     Object.values(mapa).forEach(registros => {
-      // Ordenar por fecha ascendente para detectar consecutivos
       registros.sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
       let i = 0
       while (i < registros.length) {
@@ -124,7 +218,6 @@ export default function Reportes() {
       }
     })
 
-    // Ordenar resultado por nombre de empleado y fecha descendente
     return resultado.sort((a, b) => {
       const empA = empleados.find(e => e.id === a.empleado_id)?.nombre || ''
       const empB = empleados.find(e => e.id === b.empleado_id)?.nombre || ''
@@ -153,8 +246,11 @@ export default function Reportes() {
     const resumenFilas = resumenPorEmpleado().flatMap(emp => {
       const motivos = Object.entries(emp.motivos)
       const total = motivos.reduce((sum, [, d]) => sum + d, 0)
-      const vacDisp = calcularDiasVacaciones(emp.fechaIngreso)
-      const vacRest = Math.max(0, vacDisp - emp.vacTomadas)
+      const vacTomadas = ausenciasAnuales.filter(a => a.empleado_id === emp.id && esVacacion(a.motivo)).length
+      const vacDisp = calcularDiasVacaciones(emp.fechaIngreso, anioReporte)
+      const adeudadas = calcularAdeudadas({ ...emp, saldoAnterior: emp.saldoAnterior ?? 0 })
+      const vacRest = vacDisp + adeudadas - vacTomadas
+      const fr = calcularFrancos(emp.id, emp.francosSaldoAnterior ?? 0)
       return motivos.map(([motivo, dias], mi) => ({
         nombre: mi === 0 ? emp.nombre : '',
         departamento: mi === 0 ? (emp.departamento || '-') : '',
@@ -162,8 +258,13 @@ export default function Reportes() {
         dias: String(dias),
         total: mi === 0 ? String(total) : '',
         vacDisponibles: mi === 0 ? String(vacDisp) : '',
-        vacTomadas: mi === 0 ? String(emp.vacTomadas) : '',
+        vacAdeudadas: mi === 0 ? String(adeudadas) : '',
+        vacTomadas: mi === 0 ? String(vacTomadas) : '',
         vacRestantes: mi === 0 ? String(vacRest) : '',
+        francosAFavor: mi === 0 ? String(fr.aFavor) : '',
+        francosAdeudados: mi === 0 ? String(fr.adeudados) : '',
+        francosTomados: mi === 0 ? String(fr.tomados) : '',
+        francosSaldo: mi === 0 ? String(fr.saldo) : '',
       }))
     })
     const res = await fetch('/api/google/sheets', {
@@ -313,8 +414,9 @@ export default function Reportes() {
 
             {/* Resumen agrupado por empleado */}
             <div className="bg-white rounded-xl shadow overflow-x-auto mb-6">
-              <div className="px-6 py-4 border-b">
+              <div className="px-6 py-4 border-b flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-700">Resumen por empleado</h2>
+                <span className="text-xs text-gray-400">Vacaciones y francos calculados para el año {anioReporte}</span>
               </div>
               <table className="w-full text-sm">
                 <thead>
@@ -325,19 +427,27 @@ export default function Reportes() {
                     <th className="text-left px-4 py-3 text-gray-600 font-semibold">Dias</th>
                     <th className="text-left px-4 py-3 text-gray-600 font-semibold">Total</th>
                     <th className="text-left px-4 py-3 text-green-700 font-semibold bg-green-50">Vac. Disponibles</th>
+                    <th className="text-left px-4 py-3 text-teal-700 font-semibold bg-teal-50">Vac. Adeudadas</th>
                     <th className="text-left px-4 py-3 text-orange-700 font-semibold bg-orange-50">Vac. Tomadas</th>
-                    <th className="text-left px-4 py-3 text-blue-700 font-semibold bg-blue-50">Vac. Restantes</th>
+                    <th className="text-left px-4 py-3 text-blue-700 font-semibold bg-blue-50">Vac. Saldo</th>
+                    <th className="text-left px-4 py-3 text-indigo-700 font-semibold bg-indigo-50">Francos A Favor</th>
+                    <th className="text-left px-4 py-3 text-cyan-700 font-semibold bg-cyan-50">Francos Adeudados</th>
+                    <th className="text-left px-4 py-3 text-amber-700 font-semibold bg-amber-50">Francos Tomados</th>
+                    <th className="text-left px-4 py-3 text-purple-700 font-semibold bg-purple-50">Francos Saldo</th>
                   </tr>
                 </thead>
                 <tbody>
                   {resumenPorEmpleado().length === 0 ? (
-                    <tr><td colSpan={8} className="text-center text-gray-400 py-8">Sin ausencias.</td></tr>
+                    <tr><td colSpan={13} className="text-center text-gray-400 py-8">Sin ausencias.</td></tr>
                   ) : (
-                    resumenPorEmpleado().map((emp, ei) => {
+                    resumenPorEmpleado().map((emp) => {
                       const motivos = Object.entries(emp.motivos)
                       const total = motivos.reduce((sum, [, dias]) => sum + dias, 0)
-                      const vacDisp = calcularDiasVacaciones(emp.fechaIngreso)
-                      const vacRest = Math.max(0, vacDisp - emp.vacTomadas)
+                      const vacTomadas = ausenciasAnuales.filter(a => a.empleado_id === emp.id && esVacacion(a.motivo)).length
+                      const vacDisp = calcularDiasVacaciones(emp.fechaIngreso, anioReporte)
+                      const adeudadas = calcularAdeudadas(emp)
+                      const vacRest = vacDisp + adeudadas - vacTomadas
+                      const fr = calcularFrancos(emp.id, emp.francosSaldoAnterior ?? 0)
                       return motivos.map(([motivo, dias], mi) => {
                         const cat = getCat(motivo)
                         return (
@@ -356,8 +466,13 @@ export default function Reportes() {
                               <>
                                 <td className="px-4 py-3 font-bold text-gray-800" rowSpan={motivos.length}>{total} dia{total > 1 ? 's' : ''}</td>
                                 <td className="px-4 py-3 font-semibold text-green-700 bg-green-50" rowSpan={motivos.length}>{vacDisp}</td>
-                                <td className="px-4 py-3 font-semibold text-orange-700 bg-orange-50" rowSpan={motivos.length}>{emp.vacTomadas}</td>
-                                <td className={`px-4 py-3 font-bold bg-blue-50 ${vacRest <= 0 ? 'text-red-600' : 'text-blue-700'}`} rowSpan={motivos.length}>{vacRest}</td>
+                                <td className="px-4 py-3 font-semibold text-teal-700 bg-teal-50" rowSpan={motivos.length}>{adeudadas}</td>
+                                <td className="px-4 py-3 font-semibold text-orange-700 bg-orange-50" rowSpan={motivos.length}>{vacTomadas}</td>
+                                <td className={`px-4 py-3 font-bold bg-blue-50 ${vacRest < 0 ? 'text-red-600' : 'text-blue-700'}`} rowSpan={motivos.length}>{vacRest}</td>
+                                <td className="px-4 py-3 font-semibold text-indigo-700 bg-indigo-50" rowSpan={motivos.length}>{fr.aFavor}</td>
+                                <td className="px-4 py-3 font-semibold text-cyan-700 bg-cyan-50" rowSpan={motivos.length}>{fr.adeudados}</td>
+                                <td className="px-4 py-3 font-semibold text-amber-700 bg-amber-50" rowSpan={motivos.length}>{fr.tomados}</td>
+                                <td className={`px-4 py-3 font-bold bg-purple-50 ${fr.saldo < 0 ? 'text-red-600' : 'text-purple-700'}`} rowSpan={motivos.length}>{fr.saldo}</td>
                               </>
                             )}
                           </tr>

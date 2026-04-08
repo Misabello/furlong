@@ -13,7 +13,9 @@ export default function Usuarios() {
     password: '',
     departamento: '',
     fecha_ingreso: '',
-    es_supervisor: false
+    es_supervisor: false,
+    vacaciones_saldo_anterior: '',
+    francos_saldo_anterior: ''
   })
   const [editando, setEditando] = useState(null)
   const [mensaje, setMensaje] = useState('')
@@ -67,7 +69,9 @@ export default function Usuarios() {
           rol,
           departamento: form.departamento,
           fecha_ingreso: form.fecha_ingreso || null,
-          supervisor_id
+          supervisor_id,
+          vacaciones_saldo_anterior: form.vacaciones_saldo_anterior !== '' ? Number(form.vacaciones_saldo_anterior) : null,
+          francos_saldo_anterior: form.francos_saldo_anterior !== '' ? Number(form.francos_saldo_anterior) : null
         })
         .eq('id', editando)
 
@@ -84,7 +88,9 @@ export default function Usuarios() {
           rol: form.es_supervisor ? 'supervisor' : 'empleado',
           departamento: form.departamento,
           fecha_ingreso: form.fecha_ingreso,
-          supervisor_id
+          supervisor_id,
+          vacaciones_saldo_anterior: form.vacaciones_saldo_anterior !== '' ? Number(form.vacaciones_saldo_anterior) : null,
+          francos_saldo_anterior: form.francos_saldo_anterior !== '' ? Number(form.francos_saldo_anterior) : null
         })
       })
       
@@ -107,7 +113,9 @@ export default function Usuarios() {
       password: '',
       departamento: u.departamento || '',
       fecha_ingreso: u.fecha_ingreso || '',
-      es_supervisor: u.rol === 'supervisor'
+      es_supervisor: u.rol === 'supervisor',
+      vacaciones_saldo_anterior: u.vacaciones_saldo_anterior ?? '',
+      francos_saldo_anterior: u.francos_saldo_anterior ?? ''
     })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -124,7 +132,9 @@ export default function Usuarios() {
     password: '',
     departamento: '',
     fecha_ingreso: '',
-    es_supervisor: false
+    es_supervisor: false,
+    vacaciones_saldo_anterior: '',
+    francos_saldo_anterior: ''
   })
 
   return (
@@ -166,6 +176,14 @@ export default function Usuarios() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de ingreso</label>
               <input type="date" value={form.fecha_ingreso} onChange={e => setForm({...form, fecha_ingreso: e.target.value})} className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Vac. adeudadas pre-sistema <span className="text-gray-400 font-normal text-xs">(dias no tomados antes de usar la app)</span></label>
+              <input type="number" min="0" step="0.5" value={form.vacaciones_saldo_anterior} onChange={e => setForm({...form, vacaciones_saldo_anterior: e.target.value})} className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Francos adeudados pre-sistema <span className="text-gray-400 font-normal text-xs">(francos a favor acumulados antes de usar la app)</span></label>
+              <input type="number" min="0" step="0.5" value={form.francos_saldo_anterior} onChange={e => setForm({...form, francos_saldo_anterior: e.target.value})} className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0" />
             </div>
             <div className="flex items-center gap-3 mt-2">
               <input type="checkbox" id="es_supervisor" checked={form.es_supervisor} onChange={e => setForm({...form, es_supervisor: e.target.checked})} className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />

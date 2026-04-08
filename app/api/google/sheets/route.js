@@ -55,9 +55,9 @@ export async function POST(request) {
   }]
 
   if (resumenFilas && resumenFilas.length > 0) {
-    const headersResumen = ['Empleado', 'Departamento', 'Motivo', 'Dias', 'Total ausencias', 'Vac. Disponibles', 'Vac. Tomadas', 'Vac. Restantes']
+    const headersResumen = ['Empleado', 'Departamento', 'Motivo', 'Dias', 'Total ausencias', 'Vac. Disponibles', 'Vac. Adeudadas', 'Vac. Tomadas', 'Vac. Saldo', 'Francos A Favor', 'Francos Adeudados', 'Francos Tomados', 'Francos Saldo']
     const valoresResumen = [headersResumen, ...resumenFilas.map(f => [
-      f.nombre, f.departamento, f.motivo, f.dias, f.total, f.vacDisponibles, f.vacTomadas, f.vacRestantes
+      f.nombre, f.departamento, f.motivo, f.dias, f.total, f.vacDisponibles, f.vacAdeudadas, f.vacTomadas, f.vacRestantes, f.francosAFavor, f.francosAdeudados, f.francosTomados, f.francosSaldo
     ])]
     sheetsConfig.push({
       properties: { title: 'Resumen' },
