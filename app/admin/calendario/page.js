@@ -62,7 +62,7 @@ export default function CalendarioAdmin() {
 
   const empleadosFiltrados = empleados
     .filter(e => filtroDept === 'Todos' || e.departamento === filtroDept)
-    .filter(e => busqueda === '' || e.id === busqueda)
+    .filter(e => busqueda === '' || e.nombre.toLowerCase().includes(busqueda.toLowerCase()))
 
   const tieneAusencia = (empleadoId, fecha) => {
     const fechaStr = toLocalISO(fecha)
@@ -114,14 +114,13 @@ export default function CalendarioAdmin() {
 
         {/* Filtros */}
         <div className="bg-white rounded-xl shadow px-6 py-4 mb-4 flex flex-wrap gap-4 items-center">
-          <select
+          <input
+            type="text"
+            placeholder="Buscar empleado..."
             value={busqueda}
             onChange={e => setBusqueda(e.target.value)}
             className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-48"
-          >
-            <option value="">Todos los usuarios</option>
-            {empleados.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-          </select>
+          />
           <div className="flex flex-wrap gap-2">
             {DEPARTAMENTOS.map(d => (
               <button key={d} onClick={() => setFiltroDept(d)} className={`px-3 py-1 rounded-full text-sm font-medium transition ${filtroDept === d ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
