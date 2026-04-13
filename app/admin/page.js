@@ -82,7 +82,7 @@ export default function Admin() {
 
   const dias = getDiasSemana(semanaOffset)
   const fechaInicio = modoFiltro && filtroDesde ? filtroDesde : toLocalISO(dias[0])
-  const fechaFin = modoFiltro && filtroHasta ? filtroHasta : toLocalISO(dias[6])
+  const fechaFin = modoFiltro && filtroHasta ? filtroHasta : toLocalISO(dias[14])
   const formatFecha = (d) => d.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })
   const getCat = (nombre) => categorias.find(c => c.nombre === nombre) || { emoji: '📝', color: 'bg-gray-100 text-gray-600' }
 
