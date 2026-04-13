@@ -13,17 +13,30 @@ export async function POST(request) {
 
     if (error) return Response.json({ ok: false, error: error.message }, { status: 400 })
 
+    // Upsert base (por si no existe trigger que cree la fila)
     await supabaseAdmin.from('usuarios').upsert({
       id: data.user.id,
       email,
       nombre,
       rol,
-      departamento,
+      departamento: departamento || null,
       fecha_ingreso: fecha_ingreso || null,
       supervisor_id: supervisor_id || null,
       vacaciones_saldo_anterior: vacaciones_saldo_anterior ?? null,
       francos_saldo_anterior: francos_saldo_anterior ?? null
-    })
+    }, { onConflict: 'id' })
+
+    // Update explícito para garantizar que los campos extra se graben
+    // incluso si el trigger de auth.users pisó el upsert anterior
+    const { error: updateError } = await supabaseAdmin.from('usuarios').update({
+      departamento: departamento || null,
+      fecha_ingreso: fecha_ingreso || null,
+      supervisor_id: supervisor_id || null,
+      vacaciones_saldo_anterior: vacaciones_saldo_anterior ?? null,
+      francos_saldo_anterior: francos_saldo_anterior ?? null
+    }).eq('id', data.user.id)
+
+    if (updateError) return Response.json({ ok: false, error: updateError.message }, { status: 500 })
 
     return Response.json({ ok: true })
   } catch (error) {
