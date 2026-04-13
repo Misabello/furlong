@@ -100,8 +100,9 @@ export default function Supervisor() {
         const { data } = await supabase.from('usuarios').select('*').order('nombre')
         empList = data
       } else {
-        const { data: dept } = await supabase.from('departamentos').select('nombre').eq('supervisor_id', user.id).single()
-        const { data } = await supabase.from('usuarios').select('*').eq('departamento', dept?.nombre)
+        const { data: depts } = await supabase.from('departamentos').select('nombre').eq('supervisor_id', user.id)
+        const deptNames = (depts || []).map(d => d.nombre)
+        const { data } = await supabase.from('usuarios').select('*').in('departamento', deptNames.length > 0 ? deptNames : [''])
         empList = data
       }
       setEmpleados(empList || [])

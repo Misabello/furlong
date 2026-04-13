@@ -36,10 +36,20 @@ export default function Reportes() {
       const { data: sup } = await supabase.from('usuarios').select('*').eq('id', user.id).single()
       if (sup?.rol !== 'supervisor' && sup?.rol !== 'admin') { router.push('/empleado'); return }
       setUsuario(sup)
-      const { data: emps } = await supabase.from('usuarios').select('*').order('nombre')
-      setEmpleados(emps || [])
-      const { data: depts } = await supabase.from('departamentos').select('nombre').order('nombre')
+      const { data: depts } = await supabase.from('departamentos').select('nombre, supervisor_id').order('nombre')
       setDepartamentos(['Todos', ...(depts || []).map(d => d.nombre)])
+
+      let emps
+      if (sup?.rol === 'supervisor') {
+        const misDepts = (depts || []).filter(d => d.supervisor_id === sup.id).map(d => d.nombre)
+        const { data } = await supabase.from('usuarios').select('*').in('departamento', misDepts.length > 0 ? misDepts : ['']).order('nombre')
+        emps = data
+        setFiltroDept('__supervisor__')
+      } else {
+        const { data } = await supabase.from('usuarios').select('*').order('nombre')
+        emps = data
+      }
+      setEmpleados(emps || [])
     }
     init()
   }, [])
@@ -52,7 +62,7 @@ export default function Reportes() {
     const anio = new Date(filtroDesde + 'T12:00:00').getFullYear()
     setAnioReporte(anio)
 
-    const ids = empleados.filter(e => filtroDept === 'Todos' || e.departamento === filtroDept).map(e => e.id)
+    const ids = empleados.filter(e => filtroDept === 'Todos' || filtroDept === '__supervisor__' || e.departamento === filtroDept).map(e => e.id)
 
     let query = supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', filtroDesde).lte('fecha', filtroHasta)
     if (filtroMotivo !== 'todos') query = query.eq('motivo', filtroMotivo)
@@ -166,7 +176,7 @@ export default function Reportes() {
 
   const ausenciasFiltradas = ausencias.filter(a => {
     const emp = empleados.find(e => e.id === a.empleado_id)
-    if (filtroDept !== 'Todos' && emp?.departamento !== filtroDept) return false
+    if (filtroDept !== 'Todos' && filtroDept !== '__supervisor__' && emp?.departamento !== filtroDept) return false
     if (filtroUsuario.trim() && !emp?.nombre?.toLowerCase().includes(filtroUsuario.toLowerCase().trim())) return false
     return true
   })
@@ -175,7 +185,7 @@ export default function Reportes() {
     const mapa = {}
     ausenciasAnuales.forEach(a => {
       const emp = empleados.find(e => e.id === a.empleado_id)
-      if (filtroDept !== 'Todos' && emp?.departamento !== filtroDept) return
+      if (filtroDept !== 'Todos' && filtroDept !== '__supervisor__' && emp?.departamento !== filtroDept) return
       if (filtroUsuario.trim() && !emp?.nombre?.toLowerCase().includes(filtroUsuario.toLowerCase().trim())) return
       if (!emp) return
       if (!mapa[emp.id]) mapa[emp.id] = {
@@ -196,7 +206,7 @@ export default function Reportes() {
   }
 
   const rankingEmpleados = empleados
-    .filter(e => filtroDept === 'Todos' || e.departamento === filtroDept)
+    .filter(e => filtroDept === 'Todos' || filtroDept === '__supervisor__' || e.departamento === filtroDept)
     .map(emp => ({ ...emp, ausencias: ausenciasFiltradas.filter(a => a.empleado_id === emp.id).length }))
     .filter(e => e.ausencias > 0)
     .sort((a, b) => b.ausencias - a.ausencias)
@@ -338,9 +348,18 @@ export default function Reportes() {
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Departamento</label>
-              <select value={filtroDept} onChange={e => setFiltroDept(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                {departamentos.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
+              {usuario?.rol === 'supervisor' ? (
+                <div className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
+                  {departamentos.filter(d => d !== 'Todos').filter(d => {
+                    // mostrar solo los depts del supervisor
+                    return empleados.some(e => e.departamento === d)
+                  }).join(', ') || 'Mi departamento'}
+                </div>
+              ) : (
+                <select value={filtroDept} onChange={e => setFiltroDept(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {departamentos.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Motivo</label>
