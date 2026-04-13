@@ -23,6 +23,13 @@ export default function Usuarios() {
   const [loading, setLoading] = useState(false)
   const [bajaUsuarioId, setBajaUsuarioId] = useState(null)
   const [bajaFecha, setBajaFecha] = useState('')
+  const [tablaFiltroNombre, setTablaFiltroNombre] = useState('')
+  const [tablaFiltroEmail, setTablaFiltroEmail] = useState('')
+  const [tablaFiltroDept, setTablaFiltroDept] = useState('')
+  const [tablaFiltroRol, setTablaFiltroRol] = useState('')
+  const [tablaFiltroEstado, setTablaFiltroEstado] = useState('')
+  const [tablaSortCol, setTablaSortCol] = useState('nombre')
+  const [tablaSortDir, setTablaSortDir] = useState('asc')
   const router = useRouter()
 
   useEffect(() => {
@@ -153,6 +160,27 @@ export default function Usuarios() {
     francos_saldo_anterior: ''
   })
 
+  const handleSort = (col) => {
+    if (tablaSortCol === col) { setTablaSortDir(d => d === 'asc' ? 'desc' : 'asc') }
+    else { setTablaSortCol(col); setTablaSortDir('asc') }
+  }
+  const usuariosOrdenados = [...usuarios]
+    .filter(u => {
+      if (tablaFiltroNombre && !u.nombre?.toLowerCase().includes(tablaFiltroNombre.toLowerCase())) return false
+      if (tablaFiltroEmail && !u.email?.toLowerCase().includes(tablaFiltroEmail.toLowerCase())) return false
+      if (tablaFiltroDept && !u.departamento?.toLowerCase().includes(tablaFiltroDept.toLowerCase())) return false
+      if (tablaFiltroRol === 'supervisor' && u.rol !== 'supervisor') return false
+      if (tablaFiltroRol === 'empleado' && u.rol !== 'empleado') return false
+      if (tablaFiltroEstado === 'activo' && u.fecha_baja) return false
+      if (tablaFiltroEstado === 'baja' && !u.fecha_baja) return false
+      return true
+    })
+    .sort((a, b) => {
+      const va = (a[tablaSortCol] || '').toString().toLowerCase()
+      const vb = (b[tablaSortCol] || '').toString().toLowerCase()
+      return tablaSortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
+    })
+
   return (
     <main className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-5xl mx-auto">
@@ -179,7 +207,7 @@ export default function Usuarios() {
             {!editando && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Contrasena</label>
-                <input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Min. 6 caracteres" required={!editando} />
+                <input type="password" autoComplete="new-password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ingresá una contraseña" required={!editando} />
               </div>
             )}
             <div>
@@ -225,20 +253,41 @@ export default function Usuarios() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="text-left px-4 py-3 text-gray-600 font-semibold">Nombre</th>
-                <th className="text-left px-4 py-3 text-gray-600 font-semibold">Email</th>
-                <th className="text-left px-4 py-3 text-gray-600 font-semibold">Departamento</th>
-                <th className="text-left px-4 py-3 text-gray-600 font-semibold">Ingreso</th>
-                <th className="text-left px-4 py-3 text-gray-600 font-semibold">Rol</th>
+                {[{key:'nombre',label:'Nombre'},{key:'email',label:'Email'},{key:'departamento',label:'Departamento'},{key:'fecha_ingreso',label:'Ingreso'},{key:'rol',label:'Rol'}].map(col => (
+                  <th key={col.key} onClick={() => handleSort(col.key)} className="text-left px-4 py-3 text-gray-600 font-semibold cursor-pointer select-none hover:bg-gray-100">
+                    {col.label} {tablaSortCol === col.key ? (tablaSortDir === 'asc' ? '↑' : '↓') : <span className="text-gray-300">↕</span>}
+                  </th>
+                ))}
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold">Estado</th>
                 <th className="px-4 py-3"></th>
               </tr>
+              <tr className="border-b bg-white">
+                <td className="px-3 py-1"><input value={tablaFiltroNombre} onChange={e => setTablaFiltroNombre(e.target.value)} placeholder="Filtrar..." className="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" /></td>
+                <td className="px-3 py-1"><input value={tablaFiltroEmail} onChange={e => setTablaFiltroEmail(e.target.value)} placeholder="Filtrar..." className="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" /></td>
+                <td className="px-3 py-1"><input value={tablaFiltroDept} onChange={e => setTablaFiltroDept(e.target.value)} placeholder="Filtrar..." className="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" /></td>
+                <td className="px-3 py-1"></td>
+                <td className="px-3 py-1">
+                  <select value={tablaFiltroRol} onChange={e => setTablaFiltroRol(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400">
+                    <option value="">Todos</option>
+                    <option value="supervisor">Supervisor</option>
+                    <option value="empleado">Empleado</option>
+                  </select>
+                </td>
+                <td className="px-3 py-1">
+                  <select value={tablaFiltroEstado} onChange={e => setTablaFiltroEstado(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400">
+                    <option value="">Todos</option>
+                    <option value="activo">Activo</option>
+                    <option value="baja">De baja</option>
+                  </select>
+                </td>
+                <td></td>
+              </tr>
             </thead>
             <tbody>
-              {usuarios.length === 0 ? (
+              {usuariosOrdenados.length === 0 ? (
                 <tr><td colSpan={7} className="text-center text-gray-400 py-8">No hay usuarios todavia.</td></tr>
               ) : (
-                usuarios.map(u => (
+                usuariosOrdenados.map(u => (
                   <tr key={u.id} className={`border-b hover:bg-gray-50 ${u.fecha_baja ? 'opacity-60 bg-gray-50' : ''}`}>
                     <td className="px-4 py-3 font-medium text-gray-700">{u.nombre}</td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{u.email}</td>

@@ -351,7 +351,10 @@ export default function Reportes() {
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Usuario</label>
-              <input type="text" value={filtroUsuario} onChange={e => setFiltroUsuario(e.target.value)} placeholder="Nombre y apellido..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <select value={filtroUsuario} onChange={e => setFiltroUsuario(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Todos</option>
+                {empleados.map(e => <option key={e.id} value={e.nombre}>{e.nombre}</option>)}
+              </select>
             </div>
           </div>
           <div className="flex gap-3 justify-end flex-wrap">

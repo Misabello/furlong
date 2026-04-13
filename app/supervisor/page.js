@@ -43,6 +43,7 @@ export default function Supervisor() {
   const [misAusFiltroDesde, setMisAusFiltroDesde] = useState('')
   const [misAusFiltroHasta, setMisAusFiltroHasta] = useState('')
   const [misAusFiltroMotivo, setMisAusFiltroMotivo] = useState('todos')
+  const [filtroEmpleadoAus, setFiltroEmpleadoAus] = useState('')
   const [editandoCal, setEditandoCal] = useState(null)
   const [editCalMotivo, setEditCalMotivo] = useState('')
   const [editCalDescripcion, setEditCalDescripcion] = useState('')
@@ -104,8 +105,8 @@ export default function Supervisor() {
         empList = data
       }
       setEmpleados(empList || [])
-      cargarMisAusencias(user.id)
-      cargarAdjuntosAus(user.id)
+      cargarMisAusencias(empList || [])
+      cargarAdjuntosAus(empList || [])
     }
     init()
   }, [])
@@ -127,13 +128,19 @@ export default function Supervisor() {
     cargarAusencias()
   }, [empleados, semanaOffset, filtroMotivo, filtroDesde, filtroHasta, modoFiltro])
 
-  const cargarMisAusencias = async (id) => {
-    const { data } = await supabase.from('ausencias').select('*').eq('empleado_id', id).order('fecha', { ascending: false })
+  const cargarMisAusencias = async (empList) => {
+    const list = empList || empleados
+    const ids = list.map(e => e.id)
+    if (ids.length === 0) return
+    const { data } = await supabase.from('ausencias').select('*').in('empleado_id', ids).order('fecha', { ascending: false })
     setMisAusencias(data || [])
   }
 
-  const cargarAdjuntosAus = async (id) => {
-    const data = await fetch(`/api/adjuntos?empleadoId=${id}`).then(r => r.json())
+  const cargarAdjuntosAus = async (empList) => {
+    const list = empList || empleados
+    const ids = list.map(e => e.id)
+    if (ids.length === 0) return
+    const data = await fetch(`/api/adjuntos?empleadoIds=${ids.join(',')}`).then(r => r.json())
     setAdjuntosAus(data || [])
   }
 
@@ -190,7 +197,7 @@ export default function Supervisor() {
       setMensajeAus(uploadData.ok
         ? (fechas.length > 1 ? 'Se registraron ' + fechas.length + ' dias.' : 'Ausencia registrada.') + ' Archivo subido.'
         : 'Ausencia registrada, pero no se pudo subir el archivo: ' + (uploadData.reason || 'error'))
-      cargarAdjuntosAus(usuario.id)
+      cargarAdjuntosAus()
     } else {
       setMensajeAus(fechas.length > 1 ? 'Se registraron ' + fechas.length + ' dias.' : 'Ausencia registrada.')
     }
@@ -201,7 +208,7 @@ export default function Supervisor() {
     setArchivoAus(null)
     const fileInput = document.getElementById('archivo-input-sup')
     if (fileInput) fileInput.value = ''
-    if (!paraColaborador) cargarMisAusencias(usuario.id)
+    cargarMisAusencias()
     fetch('/api/google/evento', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -213,22 +220,22 @@ export default function Supervisor() {
   const handleEliminarAus = async (ids) => {
     if (!confirm('¿Eliminar esta ausencia?')) return
     await supabase.from('ausencias').delete().in('id', ids)
-    cargarMisAusencias(usuario.id)
+    cargarMisAusencias()
   }
 
-  const handleGuardarEdicionAus = async (ids) => {
+  const handleGuardarEdicionAus = async (ids, empleadoId) => {
     const hasta = editAusUsarRango && editAusFechaHasta ? editAusFechaHasta : editAusFechaDesde
     const nuevasFechas = generarFechas(editAusFechaDesde, hasta)
     if (nuevasFechas.length === 0) return
-    const { data: conflictos, error: errConflictos } = await supabase.from('ausencias').select('fecha, id').eq('empleado_id', usuario.id).in('fecha', nuevasFechas)
+    const { data: conflictos, error: errConflictos } = await supabase.from('ausencias').select('fecha, id').eq('empleado_id', empleadoId).in('fecha', nuevasFechas)
     if (errConflictos) { setMensajeAus('Error al verificar ausencias. Intentá de nuevo.'); return }
     const reales = conflictos.filter(c => !ids.includes(c.id))
     if (reales.length > 0) { setMensajeAus('Ya tenes ausencias en: ' + reales.map(c => new Date(c.fecha + 'T12:00:00').toLocaleDateString('es-AR')).join(', ')); return }
     const bsas = getBsasTime()
     await supabase.from('ausencias').delete().in('id', ids)
-    await supabase.from('ausencias').insert(nuevasFechas.map(f => ({ empleado_id: usuario.id, fecha: f, motivo: editAusMotivo, descripcion: editAusDescripcion, fecha_carga: bsas.toISOString() })))
+    await supabase.from('ausencias').insert(nuevasFechas.map(f => ({ empleado_id: empleadoId, fecha: f, motivo: editAusMotivo, descripcion: editAusDescripcion, fecha_carga: bsas.toISOString() })))
     setEditandoAusIdx(null)
-    cargarMisAusencias(usuario.id)
+    cargarMisAusencias()
   }
 
   const tieneAusencia = (empleadoId, fecha) => {
@@ -255,14 +262,14 @@ export default function Supervisor() {
     setSubiendoAdjIdx(idx)
     const fd = new FormData()
     fd.append('file', file)
-    fd.append('empleadoId', usuario.id)
+    fd.append('empleadoId', g.empleado_id)
     fd.append('fechaDesde', g.fechaDesde)
     fd.append('fechaHasta', g.fechaHasta)
     fd.append('motivo', g.motivo)
     const res = await fetch('/api/drive/upload', { method: 'POST', body: fd })
     const data = await res.json()
     if (!data.ok) alert('No se pudo subir el archivo: ' + (data.reason || 'error'))
-    await cargarAdjuntosAus(usuario.id)
+    await cargarAdjuntosAus()
     setSubiendoAdjIdx(null)
     setAdjGrupoActual(null)
     e.target.value = ''
@@ -533,13 +540,21 @@ export default function Supervisor() {
               </form>
             </div>
             <div className="bg-white rounded-xl shadow p-4">
-              <h2 className="text-base font-semibold text-gray-700 mb-3">Mis ausencias</h2>
+              <h2 className="text-base font-semibold text-gray-700 mb-3">Historial de ausencias</h2>
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Empleado</label>
+                <select value={filtroEmpleadoAus} onChange={e => setFiltroEmpleadoAus(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-full max-w-xs">
+                  <option value="">Todos los empleados</option>
+                  {empleados.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+                </select>
+              </div>
               {misAusencias.length === 0 ? (
-                <p className="text-gray-400 text-sm">No tenes ausencias registradas.</p>
+                <p className="text-gray-400 text-sm">No hay ausencias registradas.</p>
               ) : (() => {
+                const ausenciasFiltEmp = filtroEmpleadoAus ? misAusencias.filter(a => a.empleado_id === filtroEmpleadoAus) : misAusencias
                 const mapa = {}
-                misAusencias.forEach(a => {
-                  const k = `${a.motivo}|${a.descripcion || ''}`
+                ausenciasFiltEmp.forEach(a => {
+                  const k = `${a.empleado_id}|${a.motivo}|${a.descripcion || ''}`
                   if (!mapa[k]) mapa[k] = []
                   mapa[k].push(a)
                 })
@@ -551,7 +566,7 @@ export default function Supervisor() {
                     let j = i + 1
                     while (j < registros.length && (new Date(registros[j].fecha) - new Date(registros[j - 1].fecha)) <= 3 * 24 * 60 * 60 * 1000) { j++ }
                     const grupo = registros.slice(i, j)
-                    grupos.push({ motivo: grupo[0].motivo, descripcion: grupo[0].descripcion, fechaDesde: grupo[0].fecha, fechaHasta: grupo[grupo.length - 1].fecha, dias: grupo.length, ids: grupo.map(a => a.id) })
+                    grupos.push({ empleado_id: grupo[0].empleado_id, motivo: grupo[0].motivo, descripcion: grupo[0].descripcion, fechaDesde: grupo[0].fecha, fechaHasta: grupo[grupo.length - 1].fecha, dias: grupo.length, ids: grupo.map(a => a.id) })
                     i = j
                   }
                 })
@@ -580,7 +595,7 @@ export default function Supervisor() {
                     {gruposFiltrados.map((g, idx) => {
                       const cat = getCat(g.motivo)
                       const esRango = g.dias > 1
-                      const adjunto = adjuntosAus.find(a => a.fecha_desde === g.fechaDesde && a.motivo === g.motivo)
+                      const adjunto = adjuntosAus.find(a => a.empleado_id === g.empleado_id && a.fecha_desde === g.fechaDesde && a.motivo === g.motivo)
                       const editando = editandoAusIdx === idx
                       return (
                         <li key={idx} className="border-b pb-3">
@@ -610,12 +625,13 @@ export default function Supervisor() {
                               <textarea value={editAusDescripcion} onChange={e => setEditAusDescripcion(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Descripcion (opcional)" />
                               <div className="flex gap-2 justify-end">
                                 <button onClick={() => setEditandoAusIdx(null)} className="text-xs text-gray-500 hover:underline">Cancelar</button>
-                                <button onClick={() => handleGuardarEdicionAus(g.ids)} className="text-xs bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700">Guardar</button>
+                                <button onClick={() => handleGuardarEdicionAus(g.ids, g.empleado_id)} className="text-xs bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700">Guardar</button>
                               </div>
                             </div>
                           ) : (
                             <div className="flex justify-between items-start">
                               <div>
+                                <p className="text-xs font-semibold text-gray-700 mb-1">{empleados.find(e => e.id === g.empleado_id)?.nombre?.split(',')[0] || ''}</p>
                                 <span className={cat.color + ' inline-block px-2 py-1 rounded-full text-xs font-medium'}>{cat.emoji} {g.motivo}</span>
                                 {g.descripcion && <p className="text-xs text-gray-400 mt-1">{g.descripcion}</p>}
                                 {esRango && <p className="text-xs text-gray-400 mt-0.5">{g.dias} dias</p>}

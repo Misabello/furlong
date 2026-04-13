@@ -2,7 +2,7 @@ import { supabaseAdmin } from '../../../lib/supabaseAdmin'
 
 export async function POST(request) {
   try {
-    const { email, password, nombre, rol, departamento, fecha_ingreso, supervisor_id } = await request.json()
+    const { email, password, nombre, rol, departamento, fecha_ingreso, supervisor_id, vacaciones_saldo_anterior, francos_saldo_anterior } = await request.json()
 
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -20,7 +20,9 @@ export async function POST(request) {
       rol,
       departamento,
       fecha_ingreso: fecha_ingreso || null,
-      supervisor_id: supervisor_id || null
+      supervisor_id: supervisor_id || null,
+      vacaciones_saldo_anterior: vacaciones_saldo_anterior ?? null,
+      francos_saldo_anterior: francos_saldo_anterior ?? null
     })
 
     return Response.json({ ok: true })

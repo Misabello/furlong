@@ -12,7 +12,7 @@ export default function Admin() {
   const [departamentos, setDepartamentos] = useState([])
   const [ausencias, setAusencias] = useState([])
   const [adjuntosCalendario, setAdjuntosCalendario] = useState([])
-  const [form, setForm] = useState({ nombre: '', email: '', password: '', departamento: '', fecha_ingreso: '', rol: 'empleado' })
+  const [form, setForm] = useState({ nombre: '', email: '', password: '', departamento: '', fecha_ingreso: '', rol: 'empleado', vacaciones_saldo_anterior: '', francos_saldo_anterior: '' })
   const [editando, setEditando] = useState(null)
   const [mensaje, setMensaje] = useState('')
   const [error, setError] = useState('')
@@ -58,12 +58,20 @@ export default function Admin() {
   const [bajaFecha, setBajaFecha] = useState('')
   const { categorias } = useCategorias()
   const router = useRouter()
+  const [tablaFiltroNombre, setTablaFiltroNombre] = useState('')
+  const [tablaFiltroEmail, setTablaFiltroEmail] = useState('')
+  const [tablaFiltroDept, setTablaFiltroDept] = useState('')
+  const [tablaFiltroRol, setTablaFiltroRol] = useState('')
+  const [tablaFiltroEstado, setTablaFiltroEstado] = useState('')
+  const [tablaSortCol, setTablaSortCol] = useState('nombre')
+  const [tablaSortDir, setTablaSortDir] = useState('asc')
+  const [filtroEmpleadoAus, setFiltroEmpleadoAus] = useState('')
 
   const getDiasSemana = (offset = 0) => {
     const hoy = new Date()
     const lunes = new Date(hoy)
-    lunes.setDate(hoy.getDate() - hoy.getDay() + 1 + offset * 7)
-    return Array.from({ length: 7 }, (_, i) => {
+    lunes.setDate(hoy.getDate() - hoy.getDay() + 1 + offset * 15)
+    return Array.from({ length: 15 }, (_, i) => {
       const d = new Date(lunes)
       d.setDate(lunes.getDate() + i)
       return d
@@ -104,9 +112,9 @@ export default function Admin() {
       const { data } = await supabase.from('usuarios').select('*').eq('id', user.id).single()
       if (data?.rol !== 'admin') { router.push('/'); return }
       setUsuario(data)
-      cargarUsuarios()
+      const users = await cargarUsuarios()
       cargarDepartamentos()
-      cargarMisAusencias(user.id)
+      cargarMisAusencias(users.map(u => u.id))
     }
     init()
   }, [])
@@ -127,6 +135,7 @@ export default function Admin() {
   const cargarUsuarios = async () => {
     const { data } = await supabase.from('usuarios').select('*').order('nombre')
     setUsuarios(data || [])
+    return data || []
   }
 
   const cargarDepartamentos = async () => {
@@ -134,10 +143,11 @@ export default function Admin() {
     setDepartamentos(data || [])
   }
 
-  const cargarMisAusencias = async (id) => {
+  const cargarMisAusencias = async (userIds) => {
+    const ids = userIds || []
     const [{ data }, adj] = await Promise.all([
-      supabase.from('ausencias').select('*').eq('empleado_id', id).order('fecha', { ascending: false }),
-      fetch(`/api/adjuntos?empleadoId=${id}`).then(r => r.json())
+      supabase.from('ausencias').select('*').order('fecha', { ascending: false }),
+      ids.length > 0 ? fetch(`/api/adjuntos?empleadoIds=${ids.join(',')}`).then(r => r.json()) : Promise.resolve([])
     ])
     setMisAusencias(data || [])
     setAdjuntosAus(adj || [])
@@ -188,7 +198,7 @@ export default function Admin() {
       setFechaDesdeAus('')
       setFechaHastaAus('')
       setDescripcionAus('')
-      if (!paraColaborador) cargarMisAusencias(usuario.id)
+      cargarMisAusencias(usuarios.map(u => u.id))
       fetch('/api/google/evento', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -210,14 +220,14 @@ export default function Admin() {
     setSubiendoAdjIdx(idx)
     const fd = new FormData()
     fd.append('file', file)
-    fd.append('empleadoId', usuario.id)
+    fd.append('empleadoId', g.empleado_id)
     fd.append('fechaDesde', g.fechaDesde)
     fd.append('fechaHasta', g.fechaHasta)
     fd.append('motivo', g.motivo)
     const res = await fetch('/api/drive/upload', { method: 'POST', body: fd })
     const data = await res.json()
     if (!data.ok) alert('No se pudo subir el archivo: ' + (data.reason || 'error'))
-    await cargarMisAusencias(usuario.id)
+    await cargarMisAusencias(usuarios.map(u => u.id))
     setSubiendoAdjIdx(null)
     setAdjGrupoActual(null)
     e.target.value = ''
@@ -249,7 +259,9 @@ export default function Admin() {
     if (editando) {
       const { error } = await supabase.from('usuarios').update({
         nombre: form.nombre, rol: form.rol, departamento: form.departamento,
-        fecha_ingreso: form.fecha_ingreso || null, supervisor_id
+        fecha_ingreso: form.fecha_ingreso || null, supervisor_id,
+        vacaciones_saldo_anterior: form.vacaciones_saldo_anterior !== '' ? Number(form.vacaciones_saldo_anterior) : null,
+        francos_saldo_anterior: form.francos_saldo_anterior !== '' ? Number(form.francos_saldo_anterior) : null
       }).eq('id', editando)
       if (error) { setError('Error al actualizar.') }
       else { setMensaje('Usuario actualizado.'); setEditando(null); resetForm() }
@@ -257,7 +269,7 @@ export default function Admin() {
       const res = await fetch('/api/crear-usuario', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: form.email, password: form.password, nombre: form.nombre, rol: form.rol, departamento: form.departamento, fecha_ingreso: form.fecha_ingreso, supervisor_id })
+        body: JSON.stringify({ email: form.email, password: form.password, nombre: form.nombre, rol: form.rol, departamento: form.departamento, fecha_ingreso: form.fecha_ingreso, supervisor_id, vacaciones_saldo_anterior: form.vacaciones_saldo_anterior !== '' ? Number(form.vacaciones_saldo_anterior) : null, francos_saldo_anterior: form.francos_saldo_anterior !== '' ? Number(form.francos_saldo_anterior) : null })
       })
       const result = await res.json()
       if (!result.ok) { setError('Error: ' + result.error); setLoading(false); return }
@@ -270,7 +282,7 @@ export default function Admin() {
 
   const handleEditar = (u) => {
     setEditando(u.id)
-    setForm({ nombre: u.nombre || '', email: u.email || '', password: '', departamento: u.departamento || '', fecha_ingreso: u.fecha_ingreso || '', rol: u.rol || 'empleado' })
+    setForm({ nombre: u.nombre || '', email: u.email || '', password: '', departamento: u.departamento || '', fecha_ingreso: u.fecha_ingreso ? u.fecha_ingreso.slice(0, 10) : '', rol: u.rol || 'empleado', vacaciones_saldo_anterior: u.vacaciones_saldo_anterior ?? '', francos_saldo_anterior: u.francos_saldo_anterior ?? '' })
     setTab('usuarios')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -308,7 +320,7 @@ export default function Admin() {
     cargarDepartamentos()
   }
 
-  const resetForm = () => setForm({ nombre: '', email: '', password: '', departamento: '', fecha_ingreso: '', rol: 'empleado' })
+  const resetForm = () => setForm({ nombre: '', email: '', password: '', departamento: '', fecha_ingreso: '', rol: 'empleado', vacaciones_saldo_anterior: '', francos_saldo_anterior: '' })
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -318,14 +330,14 @@ export default function Admin() {
   const handleEliminarAus = async (ids) => {
     if (!confirm('¿Eliminar esta ausencia?')) return
     await supabase.from('ausencias').delete().in('id', ids)
-    cargarMisAusencias(usuario.id)
+    cargarMisAusencias(usuarios.map(u => u.id))
   }
 
-  const handleGuardarEdicionAus = async (ids) => {
+  const handleGuardarEdicionAus = async (ids, empleadoId) => {
     const hasta = editAusUsarRango && editAusFechaHasta ? editAusFechaHasta : editAusFechaDesde
     const nuevasFechas = generarFechas(editAusFechaDesde, hasta)
     if (nuevasFechas.length === 0) return
-    const { data: conflictos, error: errConflictos } = await supabase.from('ausencias').select('fecha, id').eq('empleado_id', usuario.id).in('fecha', nuevasFechas)
+    const { data: conflictos, error: errConflictos } = await supabase.from('ausencias').select('fecha, id').eq('empleado_id', empleadoId).in('fecha', nuevasFechas)
     if (errConflictos) { setMensajeAus('Error al verificar ausencias. Intentá de nuevo.'); return }
     const reales = conflictos.filter(c => !ids.includes(c.id))
     if (reales.length > 0) {
@@ -335,10 +347,10 @@ export default function Admin() {
     const bsas = getBsasTime()
     await supabase.from('ausencias').delete().in('id', ids)
     await supabase.from('ausencias').insert(
-      nuevasFechas.map(f => ({ empleado_id: usuario.id, fecha: f, motivo: editAusMotivo, descripcion: editAusDescripcion, fecha_carga: bsas.toISOString() }))
+      nuevasFechas.map(f => ({ empleado_id: empleadoId, fecha: f, motivo: editAusMotivo, descripcion: editAusDescripcion, fecha_carga: bsas.toISOString() }))
     )
     setEditandoAusIdx(null)
-    cargarMisAusencias(usuario.id)
+    cargarMisAusencias(usuarios.map(u => u.id))
   }
 
   const recargarAusencias = async () => {
@@ -372,9 +384,28 @@ export default function Admin() {
     await recargarAusencias()
   }
 
-  const supervisores = usuarios.filter(u => u.rol === 'supervisor')
+  const supervisores = usuarios.filter(u => u.rol === 'supervisor' || u.rol === 'admin')
   const rolColor = { admin: 'bg-red-100 text-red-700', supervisor: 'bg-purple-100 text-purple-700', empleado: 'bg-blue-100 text-blue-700' }
   const deptos = ['Todos', ...departamentos.map(d => d.nombre)]
+  const handleSort = (col) => {
+    if (tablaSortCol === col) { setTablaSortDir(d => d === 'asc' ? 'desc' : 'asc') }
+    else { setTablaSortCol(col); setTablaSortDir('asc') }
+  }
+  const usuariosOrdenados = [...usuarios]
+    .filter(u => {
+      if (tablaFiltroNombre && !u.nombre?.toLowerCase().includes(tablaFiltroNombre.toLowerCase())) return false
+      if (tablaFiltroEmail && !u.email?.toLowerCase().includes(tablaFiltroEmail.toLowerCase())) return false
+      if (tablaFiltroDept && !u.departamento?.toLowerCase().includes(tablaFiltroDept.toLowerCase())) return false
+      if (tablaFiltroRol && u.rol !== tablaFiltroRol) return false
+      if (tablaFiltroEstado === 'activo' && u.fecha_baja) return false
+      if (tablaFiltroEstado === 'baja' && !u.fecha_baja) return false
+      return true
+    })
+    .sort((a, b) => {
+      const va = (a[tablaSortCol] || '').toString().toLowerCase()
+      const vb = (b[tablaSortCol] || '').toString().toLowerCase()
+      return tablaSortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
+    })
 
   if (!usuario) return <main className="min-h-screen bg-gray-100 flex items-center justify-center"><p className="text-gray-500">Cargando...</p></main>
 
@@ -481,64 +512,65 @@ export default function Admin() {
             {!modoFiltro && (
               <div className="flex items-center justify-between bg-white rounded-xl shadow px-4 py-3 mb-4">
                 <button onClick={() => setSemanaOffset(s => s - 1)} className="text-blue-600 text-xs font-medium">← Anterior</button>
-                <p className="text-gray-700 text-xs font-medium">{formatFecha(dias[0])} - {formatFecha(dias[4])}</p>
+                <p className="text-gray-700 text-xs font-medium">{formatFecha(dias[0])} - {formatFecha(dias[14])}</p>
                 <button onClick={() => setSemanaOffset(s => s + 1)} className="text-blue-600 text-xs font-medium">Siguiente →</button>
               </div>
             )}
 
             <div className="bg-white rounded-xl shadow overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b bg-gray-50">
-                    <th className="text-left px-3 py-2 text-gray-600 font-semibold min-w-32">Empleado</th>
-                    {diasMostrar.map((d, i) => <th key={i} className="px-2 py-2 text-gray-600 font-semibold text-center min-w-24">{formatFecha(d)}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {empleadosFiltrados.filter(emp => diasMostrar.some(d => tieneAusencia(emp.id, d))).length === 0 ? (
-                    <tr><td colSpan={diasMostrar.length + 1} className="text-center text-gray-400 py-8">No hay ausencias en este periodo.</td></tr>
-                  ) : (
-                    empleadosFiltrados.filter(emp => diasMostrar.some(d => tieneAusencia(emp.id, d))).map(emp => (
-                      <tr key={emp.id} className="border-b hover:bg-gray-50">
-                        <td className="px-3 py-2">
-                          <p className="font-medium text-gray-700">{emp.nombre.split(',')[0]}</p>
-                          {emp.rol === 'supervisor' && <span className="text-purple-500" style={{fontSize:'10px'}}>Supervisor</span>}
-                          {emp.rol === 'admin' && <span className="text-red-500" style={{fontSize:'10px'}}>Admin</span>}
-                          {diasMostrar.map(d => tieneAusencia(emp.id, d)).find(a => a?.fecha_carga) && (
-                            <p className="text-gray-400 mt-0.5" style={{fontSize:'10px'}}>
-                              {new Date(diasMostrar.map(d => tieneAusencia(emp.id, d)).find(a => a?.fecha_carga)?.fecha_carga).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                            </p>
-                          )}
-                        </td>
-                        {diasMostrar.map((d, i) => {
-                          const ausencia = tieneAusencia(emp.id, d)
-                          const cat = ausencia ? getCat(ausencia.motivo) : null
-                          const adjunto = ausencia ? getAdjunto(emp.id, d) : null
-                          return (
-                            <td key={i} className="px-2 py-2 text-center">
-                              {ausencia ? (
-                                <span
-                                  className={cat.color + ' inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-medium cursor-pointer hover:opacity-75'}
-                                  style={{fontSize:'10px'}}
-                                  title="Clic para editar"
-                                  onClick={() => abrirEditCal(ausencia)}
-                                >
-                                  {cat.emoji} {ausencia.motivo}
-                                  {adjunto && (
-                                    <a href={adjunto.archivo_url} target="_blank" rel="noopener noreferrer" title={adjunto.archivo_nombre} onClick={e => e.stopPropagation()}>📎</a>
-                                  )}
-                                </span>
-                              ) : (
-                                <span className="text-gray-200">—</span>
-                              )}
-                            </td>
-                          )
-                        })}
+              {(() => {
+                const empConEventos = empleadosFiltrados.filter(emp => diasMostrar.some(d => tieneAusencia(emp.id, d)))
+                if (empConEventos.length === 0) {
+                  return <p className="text-center text-gray-400 py-8">No hay ausencias en este periodo.</p>
+                }
+                return (
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-gray-50">
+                        <th className="text-left px-3 py-2 text-gray-600 font-semibold min-w-28 sticky left-0 bg-gray-50 z-10">Fecha</th>
+                        {empConEventos.map(emp => (
+                          <th key={emp.id} className="px-2 py-2 text-gray-600 font-semibold text-center min-w-28">
+                            <p>{emp.nombre.split(',')[0]}</p>
+                            {emp.rol === 'supervisor' && <span className="text-purple-500 font-normal" style={{fontSize:'10px'}}>Supervisor</span>}
+                            {emp.rol === 'admin' && <span className="text-red-500 font-normal" style={{fontSize:'10px'}}>Admin</span>}
+                          </th>
+                        ))}
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody>
+                      {diasMostrar.map((d, i) => (
+                        <tr key={i} className="border-b hover:bg-gray-50">
+                          <td className="px-3 py-2 font-medium text-gray-600 sticky left-0 bg-white whitespace-nowrap z-10">{formatFecha(d)}</td>
+                          {empConEventos.map(emp => {
+                            const ausencia = tieneAusencia(emp.id, d)
+                            const cat = ausencia ? getCat(ausencia.motivo) : null
+                            const adjunto = ausencia ? getAdjunto(emp.id, d) : null
+                            return (
+                              <td key={emp.id} className="px-2 py-2 text-center">
+                                {ausencia ? (
+                                  <span
+                                    className={cat.color + ' inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-medium cursor-pointer hover:opacity-75'}
+                                    style={{fontSize:'10px'}}
+                                    title="Clic para editar"
+                                    onClick={() => abrirEditCal(ausencia)}
+                                  >
+                                    {cat.emoji} {ausencia.motivo}
+                                    {adjunto && (
+                                      <a href={adjunto.archivo_url} target="_blank" rel="noopener noreferrer" title={adjunto.archivo_nombre} onClick={e => e.stopPropagation()}>📎</a>
+                                    )}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-200">—</span>
+                                )}
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )
+              })()}
             </div>
           </>
         )}
@@ -595,14 +627,22 @@ export default function Admin() {
               </form>
             </div>
             <div className="bg-white rounded-xl shadow p-4">
-              <h2 className="text-base font-semibold text-gray-700 mb-3">Mis ausencias</h2>
+              <h2 className="text-base font-semibold text-gray-700 mb-3">Historial de ausencias</h2>
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Empleado</label>
+                <select value={filtroEmpleadoAus} onChange={e => setFiltroEmpleadoAus(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-full max-w-xs">
+                  <option value="">Todos los empleados</option>
+                  {usuarios.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+                </select>
+              </div>
               {misAusencias.length === 0 ? (
-                <p className="text-gray-400 text-sm">No tenes ausencias registradas.</p>
+                <p className="text-gray-400 text-sm">No hay ausencias registradas.</p>
               ) : (() => {
                 const hoy = toLocalISO(new Date())
+                const ausenciasFiltEmp = filtroEmpleadoAus ? misAusencias.filter(a => a.empleado_id === filtroEmpleadoAus) : misAusencias
                 const mapa = {}
-                misAusencias.forEach(a => {
-                  const k = `${a.motivo}|${a.descripcion || ''}`
+                ausenciasFiltEmp.forEach(a => {
+                  const k = `${a.empleado_id}|${a.motivo}|${a.descripcion || ''}`
                   if (!mapa[k]) mapa[k] = []
                   mapa[k].push(a)
                 })
@@ -614,7 +654,7 @@ export default function Admin() {
                     let j = i + 1
                     while (j < registros.length && (new Date(registros[j].fecha) - new Date(registros[j - 1].fecha)) <= 3 * 24 * 60 * 60 * 1000) { j++ }
                     const grupo = registros.slice(i, j)
-                    grupos.push({ motivo: grupo[0].motivo, descripcion: grupo[0].descripcion, fechaDesde: grupo[0].fecha, fechaHasta: grupo[grupo.length - 1].fecha, dias: grupo.length, ids: grupo.map(a => a.id) })
+                    grupos.push({ empleado_id: grupo[0].empleado_id, motivo: grupo[0].motivo, descripcion: grupo[0].descripcion, fechaDesde: grupo[0].fecha, fechaHasta: grupo[grupo.length - 1].fecha, dias: grupo.length, ids: grupo.map(a => a.id) })
                     i = j
                   }
                 })
@@ -645,7 +685,7 @@ export default function Admin() {
                       const esRango = g.dias > 1
                       const esFutura = g.fechaHasta >= hoy
                       const editando = editandoAusIdx === idx
-                      const adjunto = adjuntosAus.find(a => a.fecha_desde === g.fechaDesde && a.motivo === g.motivo)
+                      const adjunto = adjuntosAus.find(a => a.empleado_id === g.empleado_id && a.fecha_desde === g.fechaDesde && a.motivo === g.motivo)
                       return (
                         <li key={idx} className="border-b pb-3">
                           {editando ? (
@@ -674,12 +714,13 @@ export default function Admin() {
                               <textarea value={editAusDescripcion} onChange={e => setEditAusDescripcion(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Descripcion (opcional)" />
                               <div className="flex gap-2 justify-end">
                                 <button onClick={() => setEditandoAusIdx(null)} className="text-xs text-gray-500 hover:underline">Cancelar</button>
-                                <button onClick={() => handleGuardarEdicionAus(g.ids)} className="text-xs bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700">Guardar</button>
+                                <button onClick={() => handleGuardarEdicionAus(g.ids, g.empleado_id)} className="text-xs bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700">Guardar</button>
                               </div>
                             </div>
                           ) : (
                             <div className="flex justify-between items-start">
                               <div>
+                                <p className="text-xs font-semibold text-gray-700 mb-1">{usuarios.find(u => u.id === g.empleado_id)?.nombre?.split(',')[0] || ''}</p>
                                 <span className={cat.color + ' inline-block px-2 py-1 rounded-full text-xs font-medium'}>{cat.emoji} {g.motivo}</span>
                                 {g.descripcion && <p className="text-xs text-gray-400 mt-1">{g.descripcion}</p>}
                                 {esRango && <p className="text-xs text-gray-400 mt-0.5">{g.dias} dias</p>}
@@ -733,7 +774,7 @@ export default function Admin() {
                 {!editando && (
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Contrasena</label>
-                    <input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Min. 6 caracteres" required={!editando} />
+                    <input type="password" autoComplete="new-password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ingresá una contraseña" required={!editando} />
                   </div>
                 )}
                 <div>
@@ -755,6 +796,14 @@ export default function Admin() {
                     <option value="admin">Admin</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Vac. adeudadas pre-sistema <span className="text-gray-400 font-normal">(días no tomados antes de la app)</span></label>
+                  <input type="number" min="0" step="0.5" value={form.vacaciones_saldo_anterior} onChange={e => setForm({...form, vacaciones_saldo_anterior: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Francos adeudados pre-sistema <span className="text-gray-400 font-normal">(francos a favor acumulados antes de la app)</span></label>
+                  <input type="number" min="0" step="0.5" value={form.francos_saldo_anterior} onChange={e => setForm({...form, francos_saldo_anterior: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0" />
+                </div>
                 {mensaje && <p className="text-green-600 text-xs sm:col-span-2">{mensaje}</p>}
                 {error && <p className="text-red-500 text-xs sm:col-span-2">{error}</p>}
                 <div className="sm:col-span-2 flex gap-3 justify-end">
@@ -769,16 +818,38 @@ export default function Admin() {
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b bg-gray-50">
-                    <th className="text-left px-3 py-2 text-gray-600 font-semibold">Nombre</th>
-                    <th className="text-left px-3 py-2 text-gray-600 font-semibold hidden sm:table-cell">Email</th>
-                    <th className="text-left px-3 py-2 text-gray-600 font-semibold hidden sm:table-cell">Depto.</th>
-                    <th className="text-left px-3 py-2 text-gray-600 font-semibold">Rol</th>
+                    {[{key:'nombre',label:'Nombre'},{key:'email',label:'Email',cls:'hidden sm:table-cell'},{key:'departamento',label:'Depto.',cls:'hidden sm:table-cell'},{key:'rol',label:'Rol'}].map(col => (
+                      <th key={col.key} onClick={() => handleSort(col.key)} className={`text-left px-3 py-2 text-gray-600 font-semibold cursor-pointer select-none hover:bg-gray-100 ${col.cls || ''}`}>
+                        {col.label} {tablaSortCol === col.key ? (tablaSortDir === 'asc' ? '↑' : '↓') : <span className="text-gray-300">↕</span>}
+                      </th>
+                    ))}
                     <th className="text-left px-3 py-2 text-gray-600 font-semibold">Estado</th>
                     <th className="px-3 py-2"></th>
                   </tr>
+                  <tr className="border-b bg-white">
+                    <td className="px-2 py-1"><input value={tablaFiltroNombre} onChange={e => setTablaFiltroNombre(e.target.value)} placeholder="Filtrar..." className="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" /></td>
+                    <td className="px-2 py-1 hidden sm:table-cell"><input value={tablaFiltroEmail} onChange={e => setTablaFiltroEmail(e.target.value)} placeholder="Filtrar..." className="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" /></td>
+                    <td className="px-2 py-1 hidden sm:table-cell"><input value={tablaFiltroDept} onChange={e => setTablaFiltroDept(e.target.value)} placeholder="Filtrar..." className="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" /></td>
+                    <td className="px-2 py-1">
+                      <select value={tablaFiltroRol} onChange={e => setTablaFiltroRol(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400">
+                        <option value="">Todos</option>
+                        <option value="admin">Admin</option>
+                        <option value="supervisor">Supervisor</option>
+                        <option value="empleado">Empleado</option>
+                      </select>
+                    </td>
+                    <td className="px-2 py-1">
+                      <select value={tablaFiltroEstado} onChange={e => setTablaFiltroEstado(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400">
+                        <option value="">Todos</option>
+                        <option value="activo">Activo</option>
+                        <option value="baja">De baja</option>
+                      </select>
+                    </td>
+                    <td></td>
+                  </tr>
                 </thead>
                 <tbody>
-                  {usuarios.map(u => (
+                  {usuariosOrdenados.map(u => (
                     <tr key={u.id} className={`border-b hover:bg-gray-50 ${u.fecha_baja ? 'opacity-60 bg-gray-50' : ''}`}>
                       <td className="px-3 py-2 font-medium text-gray-700">{u.nombre.split(',')[0]}</td>
                       <td className="px-3 py-2 text-gray-500 hidden sm:table-cell">{u.email}</td>
