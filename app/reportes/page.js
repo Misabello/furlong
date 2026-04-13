@@ -40,7 +40,7 @@ export default function Reportes() {
       setDepartamentos(['Todos', ...(depts || []).map(d => d.nombre)])
 
       let emps
-      if (sup?.rol === 'supervisor') {
+      if (sup?.rol === 'supervisor' && sup.email !== 'mandueza@furlongincoming.com.ar') {
         const misDepts = (depts || []).filter(d => d.supervisor_id === sup.id).map(d => d.nombre)
         const { data } = await supabase.from('usuarios').select('*').in('departamento', misDepts.length > 0 ? misDepts : ['']).order('nombre')
         emps = data

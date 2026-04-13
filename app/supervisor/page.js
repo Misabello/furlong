@@ -281,7 +281,7 @@ export default function Supervisor() {
     return new Date(f).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
   }
 
-  const canEditCal = usuario?.email === 'mandueza@furlongincoming.com.ar'
+  const canEditCal = usuario?.rol === 'supervisor'
 
   const recargarAusencias = async () => {
     const ids = empleados.map(e => e.id)
@@ -388,7 +388,10 @@ export default function Supervisor() {
               <div className="flex flex-wrap gap-3 items-end">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Usuario</label>
-                  <input type="text" value={busquedaUsuario} onChange={e => setBusquedaUsuario(e.target.value)} placeholder="Buscar por nombre..." className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-44" />
+                  <select value={busquedaUsuario} onChange={e => setBusquedaUsuario(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-44">
+                    <option value="">Todos</option>
+                    {empleados.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Tipo de ausencia</label>
@@ -432,10 +435,10 @@ export default function Supervisor() {
                   </tr>
                 </thead>
                 <tbody>
-                  {empleados.filter(emp => diasMostrar.some(d => tieneAusencia(emp.id, d))).filter(emp => !busquedaUsuario.trim() || emp.nombre?.toLowerCase().includes(busquedaUsuario.toLowerCase().trim())).length === 0 ? (
+                  {empleados.filter(emp => diasMostrar.some(d => tieneAusencia(emp.id, d))).filter(emp => !busquedaUsuario || emp.id === busquedaUsuario).length === 0 ? (
                     <tr><td colSpan={diasMostrar.length + 1} className="text-center text-gray-400 py-8">No hay ausencias en este periodo.</td></tr>
                   ) : (
-                    empleados.filter(emp => diasMostrar.some(d => tieneAusencia(emp.id, d))).filter(emp => !busquedaUsuario.trim() || emp.nombre?.toLowerCase().includes(busquedaUsuario.toLowerCase().trim())).map(emp => (
+                    empleados.filter(emp => diasMostrar.some(d => tieneAusencia(emp.id, d))).filter(emp => !busquedaUsuario || emp.id === busquedaUsuario).map(emp => (
                       <tr key={emp.id} className="border-b hover:bg-gray-50">
                         <td className="px-3 py-2">
                           <p className="font-medium text-gray-700">{emp.nombre.split(',')[0]}</p>
