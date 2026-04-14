@@ -96,12 +96,11 @@ export default function Supervisor() {
       if (sup?.rol !== 'supervisor') { router.push('/empleado'); return }
       setUsuario(sup)
       let empList
-      if (sup.email === 'mandueza@furlongincoming.com.ar') {
-        const { data } = await supabase.from('usuarios').select('*').order('nombre')
-        empList = data
+      const { data: dept } = await supabase.from('departamentos').select('nombre').eq('supervisor_id', user.id).single()
+      if (!dept) {
+        empList = [sup]
       } else {
-        const { data: dept } = await supabase.from('departamentos').select('nombre').eq('supervisor_id', user.id).single()
-        const { data } = await supabase.from('usuarios').select('*').eq('departamento', dept?.nombre)
+        const { data } = await supabase.from('usuarios').select('*').eq('departamento', dept.nombre)
         empList = data
       }
       setEmpleados(empList || [])
@@ -280,8 +279,6 @@ export default function Supervisor() {
     return new Date(f).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
   }
 
-  const canEditCal = usuario?.email === 'mandueza@furlongincoming.com.ar'
-
   const recargarAusencias = async () => {
     const ids = empleados.map(e => e.id)
     if (ids.length === 0) return
@@ -452,10 +449,8 @@ export default function Supervisor() {
                             <td key={i} className="px-2 py-2 text-center">
                               {ausencia ? (
                                 <span
-                                  className={cat.color + ' inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-medium' + (canEditCal ? ' cursor-pointer hover:opacity-75' : '')}
+                                  className={cat.color + ' inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-medium'}
                                   style={{fontSize:'10px'}}
-                                  title={canEditCal ? 'Clic para editar' : undefined}
-                                  onClick={canEditCal ? () => abrirEditCal(ausencia) : undefined}
                                 >
                                   {cat.emoji} {ausencia.motivo}
                                   {adjunto && (
@@ -667,7 +662,7 @@ export default function Supervisor() {
 
       </div>
 
-      {editandoCal && canEditCal && (
+      {editandoCal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
             <h3 className="text-base font-semibold text-gray-800 mb-1">Editar ausencia</h3>
