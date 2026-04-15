@@ -36,7 +36,8 @@ export default function CalendarioAdmin() {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
       if (!user) { router.push('/'); return }
       const { data } = await supabase.from('usuarios').select('rol').eq('id', user.id).single()
       if (data?.rol !== 'admin') { router.push('/'); return }

@@ -39,14 +39,16 @@ export default function Usuarios() {
   }, [])
 
   const verificarAcceso = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) { router.push('/'); return }
     const { data } = await supabase.from('usuarios').select('rol').eq('id', user.id).single()
     if (data?.rol !== 'supervisor') router.push('/empleado')
   }
 
   const cargarUsuarios = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
     const { data: dept } = await supabase.from('departamentos').select('nombre').eq('supervisor_id', user.id).single()
     let query = supabase.from('usuarios').select('*, dept:departamento(nombre)').order('nombre')

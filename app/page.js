@@ -18,7 +18,7 @@ export default function Login() {
     setError('')
 
     try {
-      try { await Promise.race([supabase.auth.signOut(), new Promise(r => setTimeout(r, 2000))]) } catch {}
+      Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k))
       const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
       if (error) {
