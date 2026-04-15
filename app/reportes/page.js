@@ -37,14 +37,10 @@ export default function Reportes() {
       if (sup?.rol !== 'supervisor' && sup?.rol !== 'admin') { router.push('/empleado'); return }
       setUsuario(sup)
       if (sup?.rol === 'supervisor') {
-        const { data: dept } = await supabase.from('departamentos').select('nombre').eq('supervisor_id', user.id).single()
-        const deptNombre = dept?.nombre
-        const { data: emps } = deptNombre
-          ? await supabase.from('usuarios').select('*').eq('departamento', deptNombre).order('nombre')
-          : { data: [sup] }
-        setEmpleados(emps || [sup])
-        setDepartamentos(deptNombre ? ['Todos', deptNombre] : ['Todos'])
-        if (deptNombre) setFiltroDept(deptNombre)
+        const { data: emps } = await supabase.from('usuarios').select('*').order('nombre')
+        setEmpleados(emps || [])
+        const { data: depts } = await supabase.from('departamentos').select('nombre').order('nombre')
+        setDepartamentos(['Todos', ...(depts || []).map(d => d.nombre)])
       } else {
         const { data: emps } = await supabase.from('usuarios').select('*').order('nombre')
         setEmpleados(emps || [])
