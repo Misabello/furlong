@@ -11,6 +11,7 @@ export default function Supervisor() {
   const [empleados, setEmpleados] = useState([])
   const [ausencias, setAusencias] = useState([])
   const [adjuntosCalendario, setAdjuntosCalendario] = useState([])
+  const [empleadosTodos, setEmpleadosTodos] = useState([])
   const [semanaOffset, setSemanaOffset] = useState(0)
   const [filtroMotivo, setFiltroMotivo] = useState('todos')
   const [busquedaUsuario, setBusquedaUsuario] = useState('')
@@ -105,6 +106,8 @@ export default function Supervisor() {
       setEmpleados(empList?.length ? empList : [sup])
       cargarMisAusencias(empList || [])
       cargarAdjuntosAus(empList || [])
+      const { data: todosEmps } = await supabase.from('usuarios').select('*').neq('rol', 'admin').order('departamento').order('nombre')
+      setEmpleadosTodos(todosEmps || [])
     }
     init()
   }, [])
@@ -114,9 +117,9 @@ export default function Supervisor() {
   }, [categorias])
 
   useEffect(() => {
-    if (empleados.length === 0) return
+    if (empleadosTodos.length === 0) return
     const cargarAusencias = async () => {
-      const ids = empleados.map(e => e.id)
+      const ids = empleadosTodos.map(e => e.id)
       let query = supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin)
       if (filtroMotivo !== 'todos') query = query.eq('motivo', filtroMotivo)
       const [{ data }, adj] = await Promise.all([query, fetch(`/api/adjuntos?empleadoIds=${ids.join(',')}`).then(r => r.json())])
@@ -124,7 +127,7 @@ export default function Supervisor() {
       setAdjuntosCalendario(adj || [])
     }
     cargarAusencias()
-  }, [empleados, semanaOffset, filtroMotivo, filtroDesde, filtroHasta, modoFiltro])
+  }, [empleadosTodos, semanaOffset, filtroMotivo, filtroDesde, filtroHasta, modoFiltro])
 
   const cargarMisAusencias = async (empList) => {
     const list = empList || empleados
@@ -279,7 +282,7 @@ export default function Supervisor() {
   }
 
   const recargarAusencias = async () => {
-    const ids = empleados.map(e => e.id)
+    const ids = empleadosTodos.map(e => e.id)
     if (ids.length === 0) return
     let q = supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin)
     if (filtroMotivo !== 'todos') q = q.eq('motivo', filtroMotivo)
@@ -413,7 +416,7 @@ export default function Supervisor() {
 
             <div className="bg-white rounded-xl shadow overflow-x-auto">
               {(() => {
-                const empConEventos = empleados
+                const empConEventos = empleadosTodos
                   .filter(emp => !busquedaUsuario.trim() || emp.nombre?.toLowerCase().includes(busquedaUsuario.toLowerCase().trim()))
                   .filter(emp => diasMostrar.some(d => tieneAusencia(emp.id, d)))
                 if (empConEventos.length === 0) {
@@ -664,7 +667,7 @@ export default function Supervisor() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
             <h3 className="text-base font-semibold text-gray-800 mb-1">Editar ausencia</h3>
-            <p className="text-xs text-gray-500 mb-4">{empleados.find(e => e.id === editandoCal.empleado_id)?.nombre?.split(',')[0]}</p>
+            <p className="text-xs text-gray-500 mb-4">{empleadosTodos.find(e => e.id === editandoCal.empleado_id)?.nombre?.split(',')[0]}</p>
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Fecha</label>
