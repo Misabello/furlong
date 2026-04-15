@@ -18,7 +18,7 @@ const TOOLS = [
         fecha_desde: { type: 'string', description: 'Fecha inicio YYYY-MM-DD (opcional)' },
         fecha_hasta: { type: 'string', description: 'Fecha fin YYYY-MM-DD (opcional)' },
         motivo: { type: 'string', description: 'Categoría de ausencia, ej: vacaciones, enfermedad (opcional)' },
-        limit: { type: 'number', description: 'Cantidad máxima de resultados, por defecto 100' }
+        limit: { type: 'number', description: 'Cantidad máxima de resultados, por defecto 20' }
       },
       required: []
     }
@@ -84,7 +84,7 @@ async function executeTool(name, input, userId, userRole) {
           .from('ausencias')
           .select('id, empleado_id, fecha, motivo, descripcion, fecha_carga, usuarios!empleado_id(nombre, departamento)')
           .order('fecha', { ascending: false })
-          .limit(input.limit || 100)
+          .limit(input.limit || 20)
 
         if (scopeIds) query = query.in('empleado_id', scopeIds)
         if (input.empleado_id) query = query.eq('empleado_id', input.empleado_id)
@@ -266,7 +266,7 @@ Hoy es ${new Date().toLocaleDateString('es-AR', { weekday: 'long', year: 'numeri
       const send = (obj) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`))
 
       try {
-        const claudeMessages = messages.map(m => ({ role: m.role, content: m.content }))
+        const claudeMessages = messages.slice(-4).map(m => ({ role: m.role, content: m.content }))
 
         // Agentic loop: keep going until end_turn
         while (true) {
