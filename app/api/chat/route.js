@@ -3,6 +3,7 @@ import { supabaseAdmin } from '../../../lib/supabaseAdmin'
 import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
