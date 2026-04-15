@@ -251,6 +251,13 @@ ${perfil.rol === 'supervisor' ? '• Podés consultar todos los empleados de la 
 
 Herramientas disponibles: consultar_ausencias, consultar_usuarios, consultar_estadisticas, consultar_departamentos, consultar_categorias.
 
+CONCEPTOS CLAVE del sistema:
+- "vacaciones registradas / tomadas": ausencias con motivo "vacaciones" ya cargadas en el sistema → usar consultar_ausencias con motivo=vacaciones
+- "vacaciones pendientes / disponibles / saldo": días de vacaciones que le quedan al empleado SIN tomar. Se calcula con consultar_estadisticas: saldo = saldo_vacaciones_anterior - días tomados como "vacaciones" en el año
+- "francos pendientes / disponibles / saldo": igual pero para francos: saldo_francos_anterior - días tomados como "franco" en el año
+- Cuando el usuario diga "pendientes", "disponibles", "les quedan", "saldo" → usá consultar_estadisticas, NO consultar_ausencias
+- Cuando el usuario diga "registradas", "tomadas", "ausencias", "historial" → usá consultar_ausencias
+
 Cuando el usuario pregunte algo que requiere datos, usá las herramientas. Interpretá las preguntas en lenguaje natural y traducílas a filtros apropiados. Si necesitás más de una herramienta, usálas en secuencia.
 
 Respondé siempre en español rioplatense. Sé conciso y presentá los datos de forma clara.
