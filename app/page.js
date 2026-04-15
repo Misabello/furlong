@@ -18,8 +18,7 @@ export default function Login() {
     setError('')
 
     try {
-      Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k))
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
       if (error) {
         setError('Email o contrasena incorrectos')
