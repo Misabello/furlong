@@ -342,7 +342,6 @@ export default function Supervisor() {
                 </button>
               ))}
               {[
-                { icon: '🗓️', label: 'Cal. completo', action: () => router.push('/supervisor/calendario') },
                 { icon: '📊', label: 'Reportes', action: () => router.push('/reportes') },
                 { icon: '👥', label: 'Usuarios', action: () => router.push('/usuarios') },
                 { icon: '👤', label: 'Mi perfil', action: () => router.push('/perfil') },
@@ -365,7 +364,6 @@ export default function Supervisor() {
             <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-500">❓ Ayuda</a>
             <button onClick={() => { setTab('calendario'); setMenuAbierto(false) }} className="text-sm text-blue-600 text-left">📅 Calendario</button>
             <button onClick={() => { setTab('misausencias'); setMenuAbierto(false) }} className="text-sm text-blue-600 text-left">📋 Mis ausencias</button>
-            <button onClick={() => { router.push('/supervisor/calendario'); setMenuAbierto(false) }} className="text-sm text-blue-600 text-left">🗓️ Calendario completo</button>
             <button onClick={() => { router.push('/perfil'); setMenuAbierto(false) }} className="text-sm text-blue-600 text-left">👤 Mi perfil</button>
             <button onClick={() => { router.push('/reportes'); setMenuAbierto(false) }} className="text-sm text-blue-600 text-left">📊 Reportes</button>
             <button onClick={() => { router.push('/usuarios'); setMenuAbierto(false) }} className="text-sm text-blue-600 text-left">👥 Usuarios</button>
@@ -373,106 +371,120 @@ export default function Supervisor() {
           </div>
         )}
 
-        {tab === 'calendario' && (
-          <>
-            <div className="bg-white rounded-xl shadow px-4 py-3 mb-4 flex items-center gap-3">
-              <span className="text-xs text-gray-500">Departamento:</span>
-              <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-600 text-white">
-                {empleados[0]?.departamento || 'Sin departamento'}
-              </span>
-            </div>
-
-            <div className="bg-white rounded-xl shadow px-4 py-3 mb-4">
-              <div className="flex flex-wrap gap-3 items-end">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Usuario</label>
-                  <input type="text" value={busquedaUsuario} onChange={e => setBusquedaUsuario(e.target.value)} placeholder="Buscar por nombre..." className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-44" />
+        {tab === 'calendario' && (() => {
+          const empCalFiltrados = empleados.filter(e =>
+            !busquedaUsuario.trim() || e.nombre?.toLowerCase().includes(busquedaUsuario.toLowerCase().trim())
+          )
+          const ausentesSet = new Set(
+            ausencias.filter(a => empCalFiltrados.find(e => e.id === a.empleado_id)).map(a => a.empleado_id)
+          )
+          return (
+            <>
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="bg-white rounded-xl shadow p-3 text-center">
+                  <p className="text-2xl font-bold text-gray-800">{empCalFiltrados.length}</p>
+                  <p className="text-xs text-gray-400 mt-1">Total empleados</p>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Tipo de ausencia</label>
-                  <select value={filtroMotivo} onChange={e => setFiltroMotivo(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="todos">Todos</option>
-                    {categorias.map(c => <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>)}
-                  </select>
+                <div className="bg-green-500 text-white rounded-xl shadow p-3 text-center">
+                  <p className="text-2xl font-bold">{empCalFiltrados.length - ausentesSet.size}</p>
+                  <p className="text-xs opacity-80 mt-1">Presentes</p>
                 </div>
-                <button onClick={() => { setModoFiltro(!modoFiltro); setFiltroDesde(''); setFiltroHasta('') }} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${modoFiltro ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
-                  Filtrar por fecha
-                </button>
-                {modoFiltro && (
-                  <>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Desde</label>
-                      <input type="date" value={filtroDesde} onChange={e => setFiltroDesde(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Hasta</label>
-                      <input type="date" value={filtroHasta} min={filtroDesde} onChange={e => setFiltroHasta(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    </div>
-                  </>
-                )}
+                <div className="bg-red-500 text-white rounded-xl shadow p-3 text-center">
+                  <p className="text-2xl font-bold">{ausentesSet.size}</p>
+                  <p className="text-xs opacity-80 mt-1">Con ausencias</p>
+                </div>
               </div>
-            </div>
 
-            {!modoFiltro && (
-              <div className="flex items-center justify-between bg-white rounded-xl shadow px-4 py-3 mb-4">
-                <button onClick={() => setSemanaOffset(s => s - 1)} className="text-blue-600 text-xs font-medium">← Anterior</button>
-                <p className="text-gray-700 text-xs font-medium">{formatFecha(dias[0])} - {formatFecha(dias[6])}</p>
-                <button onClick={() => setSemanaOffset(s => s + 1)} className="text-blue-600 text-xs font-medium">Siguiente →</button>
-              </div>
-            )}
-
-            <div className="bg-white rounded-xl shadow overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b bg-gray-50">
-                    <th className="text-left px-3 py-2 text-gray-600 font-semibold min-w-32">Empleado</th>
-                    {diasMostrar.map((d, i) => <th key={i} className="px-2 py-2 text-gray-600 font-semibold text-center min-w-24">{formatFecha(d)}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {empleados.filter(emp => diasMostrar.some(d => tieneAusencia(emp.id, d))).filter(emp => !busquedaUsuario.trim() || emp.nombre?.toLowerCase().includes(busquedaUsuario.toLowerCase().trim())).length === 0 ? (
-                    <tr><td colSpan={diasMostrar.length + 1} className="text-center text-gray-400 py-8">No hay ausencias en este periodo.</td></tr>
-                  ) : (
-                    empleados.filter(emp => diasMostrar.some(d => tieneAusencia(emp.id, d))).filter(emp => !busquedaUsuario.trim() || emp.nombre?.toLowerCase().includes(busquedaUsuario.toLowerCase().trim())).map(emp => (
-                      <tr key={emp.id} className="border-b hover:bg-gray-50">
-                        <td className="px-3 py-2">
-                          <p className="font-medium text-gray-700">{emp.nombre.split(',')[0]}</p>
-                          {diasMostrar.map(d => tieneAusencia(emp.id, d)).find(a => a?.fecha_carga) && (
-                            <p className="text-gray-400 mt-0.5" style={{fontSize:'10px'}}>
-                              {formatFechaCarga(diasMostrar.map(d => tieneAusencia(emp.id, d)).find(a => a?.fecha_carga)?.fecha_carga)}
-                            </p>
-                          )}
-                        </td>
-                        {diasMostrar.map((d, i) => {
-                          const ausencia = tieneAusencia(emp.id, d)
-                          const cat = ausencia ? getCat(ausencia.motivo) : null
-                          const adjunto = ausencia ? getAdjunto(emp.id, d) : null
-                          return (
-                            <td key={i} className="px-2 py-2 text-center">
-                              {ausencia ? (
-                                <span
-                                  className={cat.color + ' inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-medium'}
-                                  style={{fontSize:'10px'}}
-                                >
-                                  {cat.emoji} {ausencia.motivo}
-                                  {adjunto && (
-                                    <a href={adjunto.archivo_url} target="_blank" rel="noopener noreferrer" title={adjunto.archivo_nombre} onClick={e => e.stopPropagation()}>📎</a>
-                                  )}
-                                </span>
-                              ) : (
-                                <span className="text-gray-200">—</span>
-                              )}
-                            </td>
-                          )
-                        })}
-                      </tr>
-                    ))
+              {/* Filtros */}
+              <div className="bg-white rounded-xl shadow px-4 py-3 mb-4">
+                <div className="flex flex-wrap gap-3 items-end">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Buscar</label>
+                    <input type="text" value={busquedaUsuario} onChange={e => setBusquedaUsuario(e.target.value)} placeholder="Buscar por nombre..." className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-44" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Tipo de ausencia</label>
+                    <select value={filtroMotivo} onChange={e => setFiltroMotivo(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="todos">Todos</option>
+                      {categorias.map(c => <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>)}
+                    </select>
+                  </div>
+                  <button onClick={() => { setModoFiltro(!modoFiltro); setFiltroDesde(''); setFiltroHasta('') }} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${modoFiltro ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                    Filtrar por fecha
+                  </button>
+                  {modoFiltro && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Desde</label>
+                        <input type="date" value={filtroDesde} onChange={e => setFiltroDesde(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Hasta</label>
+                        <input type="date" value={filtroHasta} min={filtroDesde} onChange={e => setFiltroHasta(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                    </>
                   )}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
+                </div>
+              </div>
+
+              {!modoFiltro && (
+                <div className="flex items-center justify-between bg-white rounded-xl shadow px-4 py-3 mb-4">
+                  <button onClick={() => setSemanaOffset(s => s - 1)} className="text-blue-600 text-xs font-medium">← Anterior</button>
+                  <p className="text-gray-700 text-xs font-medium">{formatFecha(dias[0])} - {formatFecha(dias[6])}</p>
+                  <button onClick={() => setSemanaOffset(s => s + 1)} className="text-blue-600 text-xs font-medium">Siguiente →</button>
+                </div>
+              )}
+
+              {/* Tabla todos los empleados */}
+              <div className="bg-white rounded-xl shadow overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      <th className="text-left px-3 py-2 text-gray-600 font-semibold min-w-32">Empleado</th>
+                      {diasMostrar.map((d, i) => <th key={i} className="px-2 py-2 text-gray-600 font-semibold text-center min-w-24">{formatFecha(d)}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {empCalFiltrados.length === 0 ? (
+                      <tr><td colSpan={diasMostrar.length + 1} className="text-center text-gray-400 py-8">No hay empleados para mostrar.</td></tr>
+                    ) : (
+                      empCalFiltrados.map(emp => (
+                        <tr key={emp.id} className="border-b hover:bg-gray-50">
+                          <td className="px-3 py-2 font-medium text-gray-700">{emp.nombre.split(',')[0]}</td>
+                          {diasMostrar.map((d, i) => {
+                            const ausencia = tieneAusencia(emp.id, d)
+                            const cat = ausencia ? getCat(ausencia.motivo) : null
+                            const adjunto = ausencia ? getAdjunto(emp.id, d) : null
+                            return (
+                              <td key={i} className="px-2 py-2 text-center">
+                                {ausencia ? (
+                                  <span
+                                    className={cat.color + ' inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-medium cursor-pointer hover:opacity-80'}
+                                    style={{fontSize:'10px'}}
+                                    onClick={() => abrirEditCal(ausencia)}
+                                    title="Clic para editar"
+                                  >
+                                    {cat.emoji} {ausencia.motivo}
+                                    {adjunto && (
+                                      <a href={adjunto.archivo_url} target="_blank" rel="noopener noreferrer" title={adjunto.archivo_nombre} onClick={e => e.stopPropagation()}>📎</a>
+                                    )}
+                                  </span>
+                                ) : (
+                                  <span className="inline-block w-3 h-3 rounded-full bg-green-400 mx-auto" title="Presente" />
+                                )}
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )
+        })()}
 
         {tab === 'misausencias' && (
           <div className="max-w-2xl mx-auto">
