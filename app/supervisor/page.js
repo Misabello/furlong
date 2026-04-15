@@ -97,13 +97,12 @@ export default function Supervisor() {
       setUsuario(sup)
       let empList
       const { data: dept } = await supabase.from('departamentos').select('nombre').eq('supervisor_id', user.id).single()
-      if (!dept) {
-        empList = [sup]
-      } else {
-        const { data } = await supabase.from('usuarios').select('*').eq('departamento', dept.nombre)
+      const deptNombre = dept?.nombre || sup.departamento
+      if (deptNombre) {
+        const { data } = await supabase.from('usuarios').select('*').eq('departamento', deptNombre).order('nombre')
         empList = data
       }
-      setEmpleados(empList || [])
+      setEmpleados(empList?.length ? empList : [sup])
       cargarMisAusencias(empList || [])
       cargarAdjuntosAus(empList || [])
     }
