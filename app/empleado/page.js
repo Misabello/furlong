@@ -9,6 +9,8 @@ import Image from 'next/image'
 export default function Empleado() {
   const [usuario, setUsuario] = useState(null)
   const [ausencias, setAusencias] = useState([])
+  const [ausenciasAnuales, setAusenciasAnuales] = useState([])
+  const [ausenciasHistoricas, setAusenciasHistoricas] = useState([])
   const [adjuntos, setAdjuntos] = useState([])
   const [fechaDesde, setFechaDesde] = useState('')
   const [fechaHasta, setFechaHasta] = useState('')
@@ -35,6 +37,13 @@ export default function Empleado() {
       setUsuario(data)
       cargarAusencias(user.id)
       cargarAdjuntos(user.id)
+      const anioActual = new Date().getFullYear()
+      const [{ data: anuales }, { data: historicas }] = await Promise.all([
+        supabase.from('ausencias').select('*').eq('empleado_id', user.id).gte('fecha', `${anioActual}-01-01`).lte('fecha', `${anioActual}-12-31`),
+        supabase.from('ausencias').select('*').eq('empleado_id', user.id).lt('fecha', `${anioActual}-01-01`)
+      ])
+      setAusenciasAnuales(anuales || [])
+      setAusenciasHistoricas(historicas || [])
     }
     init()
   }, [])
@@ -188,6 +197,75 @@ export default function Empleado() {
     router.push('/')
   }
 
+  const normalizarMotivo = (s) =>
+    (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+
+  const esVacacion = (motivo) => motivo?.toLowerCase().includes('vacaci')
+
+  const contarDiasHabiles = (desde, hasta) => {
+    let count = 0
+    const d = new Date(desde)
+    const h = new Date(hasta)
+    while (d <= h) {
+      const dia = d.getDay()
+      if (dia !== 0 && dia !== 6) count++
+      d.setDate(d.getDate() + 1)
+    }
+    return count
+  }
+
+  const calcularDiasVacaciones = (fechaIngreso, anio) => {
+    if (!fechaIngreso) return 0
+    const ingreso = new Date(fechaIngreso + 'T12:00:00')
+    const anioIngreso = ingreso.getFullYear()
+    const mesIngreso = ingreso.getMonth() + 1
+    if (anioIngreso === anio) {
+      if (mesIngreso < 7) return 14
+      const finAnio = new Date(`${anio}-12-31T12:00:00`)
+      const habiles = contarDiasHabiles(ingreso, finAnio)
+      return Math.floor(habiles / 20)
+    }
+    const anos = anio - anioIngreso
+    if (anos < 5) return 14
+    if (anos < 10) return 21
+    if (anos < 20) return 28
+    return 35
+  }
+
+  const calcularResumenEmpleado = () => {
+    if (!usuario) return null
+    const anioActual = new Date().getFullYear()
+    const vacDisp = calcularDiasVacaciones(usuario.fecha_ingreso, anioActual)
+    const vacTomadas = ausenciasAnuales.filter(a => esVacacion(a.motivo)).length
+    const vacAdeudadas = usuario.vacaciones_saldo_anterior ?? 0
+    const vacSaldo = vacDisp + vacAdeudadas - vacTomadas
+
+    const clasificar = (motivo, acum) => {
+      const m = normalizarMotivo(motivo)
+      if (m === 'domingo/feriado trabajado') acum.favor += 1
+      else if (m === 'sabado pm trabajado') acum.favor += 0.5
+      else if (m === 'franco compensatorio') acum.tomados += 1
+      else if (m === '1/2 dia franco') acum.tomados += 0.5
+    }
+
+    const hist = { favor: 0, tomados: 0 }
+    ausenciasHistoricas.forEach(a => clasificar(a.motivo, hist))
+    const francoAdeudados = Math.max(0, ((usuario.francos_saldo_anterior ?? 0) + hist.favor) - hist.tomados)
+
+    const anual = { favor: 0, tomados: 0 }
+    ausenciasAnuales.forEach(a => clasificar(a.motivo, anual))
+
+    return {
+      vacDisp, vacTomadas, vacAdeudadas, vacSaldo,
+      francoFavor: anual.favor,
+      francoAdeudados,
+      francoTomados: anual.tomados,
+      francoSaldo: francoAdeudados + anual.favor - anual.tomados
+    }
+  }
+
+  const resumen = calcularResumenEmpleado()
+
   if (!usuario) return <main className="min-h-screen bg-gray-100 flex items-center justify-center"><p className="text-gray-500">Cargando...</p></main>
 
   return (
@@ -214,6 +292,56 @@ export default function Empleado() {
             </button>
           </div>
         </div>
+
+        {resumen && (
+          <div className="bg-white rounded-xl shadow p-4 mb-4">
+            <h2 className="text-base font-semibold text-gray-700 mb-3">Mi resumen {new Date().getFullYear()}</h2>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-1.5">Vacaciones</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div className="bg-green-50 rounded-lg p-2 text-center">
+                    <p className="text-lg font-bold text-green-700">{resumen.vacDisp}</p>
+                    <p className="text-xs text-green-600">Disponibles</p>
+                  </div>
+                  <div className="bg-teal-50 rounded-lg p-2 text-center">
+                    <p className="text-lg font-bold text-teal-700">{resumen.vacAdeudadas}</p>
+                    <p className="text-xs text-teal-600">Adeudadas</p>
+                  </div>
+                  <div className="bg-orange-50 rounded-lg p-2 text-center">
+                    <p className="text-lg font-bold text-orange-700">{resumen.vacTomadas}</p>
+                    <p className="text-xs text-orange-600">Tomadas</p>
+                  </div>
+                  <div className={`rounded-lg p-2 text-center ${resumen.vacSaldo < 0 ? 'bg-red-50' : 'bg-blue-50'}`}>
+                    <p className={`text-lg font-bold ${resumen.vacSaldo < 0 ? 'text-red-600' : 'text-blue-700'}`}>{resumen.vacSaldo}</p>
+                    <p className={`text-xs ${resumen.vacSaldo < 0 ? 'text-red-500' : 'text-blue-600'}`}>Saldo</p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-1.5">Francos</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div className="bg-indigo-50 rounded-lg p-2 text-center">
+                    <p className="text-lg font-bold text-indigo-700">{resumen.francoFavor}</p>
+                    <p className="text-xs text-indigo-600">A favor</p>
+                  </div>
+                  <div className="bg-cyan-50 rounded-lg p-2 text-center">
+                    <p className="text-lg font-bold text-cyan-700">{resumen.francoAdeudados}</p>
+                    <p className="text-xs text-cyan-600">Adeudados</p>
+                  </div>
+                  <div className="bg-amber-50 rounded-lg p-2 text-center">
+                    <p className="text-lg font-bold text-amber-700">{resumen.francoTomados}</p>
+                    <p className="text-xs text-amber-600">Tomados</p>
+                  </div>
+                  <div className={`rounded-lg p-2 text-center ${resumen.francoSaldo < 0 ? 'bg-red-50' : 'bg-purple-50'}`}>
+                    <p className={`text-lg font-bold ${resumen.francoSaldo < 0 ? 'text-red-600' : 'text-purple-700'}`}>{resumen.francoSaldo}</p>
+                    <p className={`text-xs ${resumen.francoSaldo < 0 ? 'text-red-500' : 'text-purple-600'}`}>Saldo</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="bg-white rounded-xl shadow p-4 mb-4">
           <h2 className="text-base font-semibold text-gray-700 mb-3">Nueva ausencia</h2>

@@ -342,6 +342,7 @@ export default function Supervisor() {
                 </button>
               ))}
               {[
+                { icon: '🗓️', label: 'Cal. completo', action: () => router.push('/supervisor/calendario') },
                 { icon: '📊', label: 'Reportes', action: () => router.push('/reportes') },
                 { icon: '👥', label: 'Usuarios', action: () => router.push('/usuarios') },
                 { icon: '👤', label: 'Mi perfil', action: () => router.push('/perfil') },
@@ -364,6 +365,7 @@ export default function Supervisor() {
             <a href="https://gamma.app/docs/Control-de-Asistencias-t9mqs084uhleedz" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-500">❓ Ayuda</a>
             <button onClick={() => { setTab('calendario'); setMenuAbierto(false) }} className="text-sm text-blue-600 text-left">📅 Calendario</button>
             <button onClick={() => { setTab('misausencias'); setMenuAbierto(false) }} className="text-sm text-blue-600 text-left">📋 Mis ausencias</button>
+            <button onClick={() => { router.push('/supervisor/calendario'); setMenuAbierto(false) }} className="text-sm text-blue-600 text-left">🗓️ Calendario completo</button>
             <button onClick={() => { router.push('/perfil'); setMenuAbierto(false) }} className="text-sm text-blue-600 text-left">👤 Mi perfil</button>
             <button onClick={() => { router.push('/reportes'); setMenuAbierto(false) }} className="text-sm text-blue-600 text-left">📊 Reportes</button>
             <button onClick={() => { router.push('/usuarios'); setMenuAbierto(false) }} className="text-sm text-blue-600 text-left">👥 Usuarios</button>

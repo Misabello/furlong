@@ -46,10 +46,12 @@ export default function Usuarios() {
   }
 
   const cargarUsuarios = async () => {
-    const { data } = await supabase
-      .from('usuarios')
-      .select('*, dept:departamento(nombre)')
-      .order('nombre')
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data: dept } = await supabase.from('departamentos').select('nombre').eq('supervisor_id', user.id).single()
+    let query = supabase.from('usuarios').select('*, dept:departamento(nombre)').order('nombre')
+    if (dept?.nombre) query = query.eq('departamento', dept.nombre)
+    const { data } = await query
     setUsuarios(data || [])
   }
 

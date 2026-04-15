@@ -36,10 +36,21 @@ export default function Reportes() {
       const { data: sup } = await supabase.from('usuarios').select('*').eq('id', user.id).single()
       if (sup?.rol !== 'supervisor' && sup?.rol !== 'admin') { router.push('/empleado'); return }
       setUsuario(sup)
-      const { data: emps } = await supabase.from('usuarios').select('*').order('nombre')
-      setEmpleados(emps || [])
-      const { data: depts } = await supabase.from('departamentos').select('nombre').order('nombre')
-      setDepartamentos(['Todos', ...(depts || []).map(d => d.nombre)])
+      if (sup?.rol === 'supervisor') {
+        const { data: dept } = await supabase.from('departamentos').select('nombre').eq('supervisor_id', user.id).single()
+        const deptNombre = dept?.nombre
+        const { data: emps } = deptNombre
+          ? await supabase.from('usuarios').select('*').eq('departamento', deptNombre).order('nombre')
+          : { data: [sup] }
+        setEmpleados(emps || [sup])
+        setDepartamentos(deptNombre ? ['Todos', deptNombre] : ['Todos'])
+        if (deptNombre) setFiltroDept(deptNombre)
+      } else {
+        const { data: emps } = await supabase.from('usuarios').select('*').order('nombre')
+        setEmpleados(emps || [])
+        const { data: depts } = await supabase.from('departamentos').select('nombre').order('nombre')
+        setDepartamentos(['Todos', ...(depts || []).map(d => d.nombre)])
+      }
     }
     init()
   }, [])
@@ -49,21 +60,18 @@ export default function Reportes() {
     setLoading(true)
     setBuscado(true)
 
-    const anio = new Date(filtroDesde + 'T12:00:00').getFullYear()
-    setAnioReporte(anio)
+    const anioFin = new Date(filtroHasta + 'T12:00:00').getFullYear()
+    setAnioReporte(anioFin)
 
     const ids = empleados.filter(e => filtroDept === 'Todos' || e.departamento === filtroDept).map(e => e.id)
 
     let query = supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', filtroDesde).lte('fecha', filtroHasta)
     if (filtroMotivo !== 'todos') query = query.eq('motivo', filtroMotivo)
 
-    const yearStart = `${anio}-01-01`
-    const yearEnd = `${anio}-12-31`
-
     const [{ data }, { data: anualesData }, { data: historicasData }] = await Promise.all([
       query.order('fecha', { ascending: false }),
-      supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', yearStart).lte('fecha', yearEnd),
-      supabase.from('ausencias').select('*').in('empleado_id', ids).lte('fecha', `${anio - 1}-12-31`)
+      supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', filtroDesde).lte('fecha', filtroHasta),
+      supabase.from('ausencias').select('*').in('empleado_id', ids).lt('fecha', filtroDesde)
     ])
 
     setAusencias(data || [])
@@ -112,25 +120,7 @@ export default function Reportes() {
 
   const esVacacion = (motivo) => motivo?.toLowerCase().includes('vacaci')
 
-  const calcularAdeudadas = (emp) => {
-    // Saldo cargado manualmente para empleados pre-sistema
-    let adeudadas = emp.saldoAnterior ?? 0
-    if (!emp.fechaIngreso) return adeudadas
-    const ingreso = new Date(emp.fechaIngreso + 'T12:00:00')
-    const anioIngreso = ingreso.getFullYear()
-    for (let y = anioIngreso; y < anioReporte; y++) {
-      const entitlement = calcularDiasVacaciones(emp.fechaIngreso, y)
-      const tomadas = ausenciasHistoricas.filter(a =>
-        a.empleado_id === emp.id &&
-        esVacacion(a.motivo) &&
-        a.fecha >= `${y}-01-01` &&
-        a.fecha <= `${y}-12-31`
-      ).length
-      const saldo = entitlement - tomadas
-      if (saldo > 0) adeudadas += saldo
-    }
-    return adeudadas
-  }
+  const calcularAdeudadas = (emp) => emp.saldoAnterior ?? 0
 
   const normalizarMotivo = (s) =>
     (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
@@ -141,7 +131,7 @@ export default function Reportes() {
       if (m === 'domingo/feriado trabajado') acum.favor += 1
       else if (m === 'sabado pm trabajado') acum.favor += 0.5
       else if (m === 'franco compensatorio') acum.tomados += 1
-      else if (m.startsWith('franco liquid')) acum.tomados += 1
+      // franco liquidado: se pagó en dinero, no cuenta en saldo de días
       else if (m === '1/2 dia franco') acum.tomados += 0.5
     }
 
@@ -443,19 +433,19 @@ export default function Reportes() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-gray-50">
-                    <th className="text-left px-4 py-3 text-gray-600 font-semibold">Empleado</th>
-                    <th className="text-left px-4 py-3 text-gray-600 font-semibold">Departamento</th>
-                    <th className="text-left px-4 py-3 text-gray-600 font-semibold">Motivo</th>
-                    <th className="text-left px-4 py-3 text-gray-600 font-semibold">Dias</th>
-                    <th className="text-left px-4 py-3 text-gray-600 font-semibold">Total</th>
-                    <th className="text-left px-4 py-3 text-green-700 font-semibold bg-green-50">Vac. Disponibles</th>
-                    <th className="text-left px-4 py-3 text-teal-700 font-semibold bg-teal-50">Vac. Adeudadas</th>
-                    <th className="text-left px-4 py-3 text-orange-700 font-semibold bg-orange-50">Vac. Tomadas</th>
-                    <th className="text-left px-4 py-3 text-blue-700 font-semibold bg-blue-50">Vac. Saldo</th>
-                    <th className="text-left px-4 py-3 text-indigo-700 font-semibold bg-indigo-50">Francos A Favor</th>
-                    <th className="text-left px-4 py-3 text-cyan-700 font-semibold bg-cyan-50">Francos Adeudados</th>
-                    <th className="text-left px-4 py-3 text-amber-700 font-semibold bg-amber-50">Francos Tomados</th>
-                    <th className="text-left px-4 py-3 text-purple-700 font-semibold bg-purple-50">Francos Saldo</th>
+                    <th className="text-left px-3 py-3 text-gray-600 font-semibold text-xs">Empleado</th>
+                    <th className="text-left px-3 py-3 text-gray-600 font-semibold text-xs">Depto.</th>
+                    <th className="text-left px-3 py-3 text-gray-600 font-semibold text-xs">Motivo</th>
+                    <th className="text-left px-3 py-3 text-gray-600 font-semibold text-xs">Días</th>
+                    <th className="text-left px-3 py-3 text-gray-600 font-semibold text-xs">Total</th>
+                    <th className="text-center px-2 py-3 text-green-700 font-semibold bg-green-50 text-xs">Vac. Disp.</th>
+                    <th className="text-center px-2 py-3 text-teal-700 font-semibold bg-teal-50 text-xs">Vac. Adeud.</th>
+                    <th className="text-center px-2 py-3 text-orange-700 font-semibold bg-orange-50 text-xs">Vac. Tom.</th>
+                    <th className="text-center px-2 py-3 text-blue-700 font-semibold bg-blue-50 text-xs">Vac. Saldo</th>
+                    <th className="text-center px-2 py-3 text-indigo-700 font-semibold bg-indigo-50 text-xs">Fr. Favor</th>
+                    <th className="text-center px-2 py-3 text-cyan-700 font-semibold bg-cyan-50 text-xs">Fr. Adeud.</th>
+                    <th className="text-center px-2 py-3 text-amber-700 font-semibold bg-amber-50 text-xs">Fr. Tom.</th>
+                    <th className="text-center px-2 py-3 text-purple-700 font-semibold bg-purple-50 text-xs">Fr. Saldo</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -486,15 +476,15 @@ export default function Reportes() {
                             <td className="px-4 py-3 text-gray-600">{dias} dia{dias !== 1 ? 's' : ''}</td>
                             {mi === 0 && (
                               <>
-                                <td className="px-4 py-3 font-bold text-gray-800" rowSpan={motivos.length}>{total} dia{total !== 1 ? 's' : ''}</td>
-                                <td className="px-4 py-3 font-semibold text-green-700 bg-green-50" rowSpan={motivos.length}>{vacDisp}</td>
-                                <td className="px-4 py-3 font-semibold text-teal-700 bg-teal-50" rowSpan={motivos.length}>{adeudadas}</td>
-                                <td className="px-4 py-3 font-semibold text-orange-700 bg-orange-50" rowSpan={motivos.length}>{vacTomadas}</td>
-                                <td className={`px-4 py-3 font-bold bg-blue-50 ${vacRest < 0 ? 'text-red-600' : 'text-blue-700'}`} rowSpan={motivos.length}>{vacRest}</td>
-                                <td className="px-4 py-3 font-semibold text-indigo-700 bg-indigo-50" rowSpan={motivos.length}>{fr.aFavor}</td>
-                                <td className="px-4 py-3 font-semibold text-cyan-700 bg-cyan-50" rowSpan={motivos.length}>{fr.adeudados}</td>
-                                <td className="px-4 py-3 font-semibold text-amber-700 bg-amber-50" rowSpan={motivos.length}>{fr.tomados}</td>
-                                <td className={`px-4 py-3 font-bold bg-purple-50 ${fr.saldo < 0 ? 'text-red-600' : 'text-purple-700'}`} rowSpan={motivos.length}>{fr.saldo}</td>
+                                <td className="px-2 py-3 font-bold text-gray-800 text-center text-xs" rowSpan={motivos.length}>{total}</td>
+                                <td className="px-2 py-3 font-semibold text-green-700 bg-green-50 text-center text-xs" rowSpan={motivos.length}>{vacDisp}</td>
+                                <td className="px-2 py-3 font-semibold text-teal-700 bg-teal-50 text-center text-xs" rowSpan={motivos.length}>{adeudadas}</td>
+                                <td className="px-2 py-3 font-semibold text-orange-700 bg-orange-50 text-center text-xs" rowSpan={motivos.length}>{vacTomadas}</td>
+                                <td className={`px-2 py-3 font-bold bg-blue-50 text-center text-xs ${vacRest < 0 ? 'text-red-600' : 'text-blue-700'}`} rowSpan={motivos.length}>{vacRest}</td>
+                                <td className="px-2 py-3 font-semibold text-indigo-700 bg-indigo-50 text-center text-xs" rowSpan={motivos.length}>{fr.aFavor}</td>
+                                <td className="px-2 py-3 font-semibold text-cyan-700 bg-cyan-50 text-center text-xs" rowSpan={motivos.length}>{fr.adeudados}</td>
+                                <td className="px-2 py-3 font-semibold text-amber-700 bg-amber-50 text-center text-xs" rowSpan={motivos.length}>{fr.tomados}</td>
+                                <td className={`px-2 py-3 font-bold bg-purple-50 text-center text-xs ${fr.saldo < 0 ? 'text-red-600' : 'text-purple-700'}`} rowSpan={motivos.length}>{fr.saldo}</td>
                               </>
                             )}
                           </tr>
