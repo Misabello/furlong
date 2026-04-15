@@ -5,8 +5,6 @@ import { createClient } from '@supabase/supabase-js'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
 const TOOLS = [
   {
     name: 'consultar_ausencias',
@@ -213,6 +211,8 @@ async function executeTool(name, input, userId, userRole) {
 }
 
 export async function POST(request) {
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+
   // Verify JWT
   const authHeader = request.headers.get('authorization')
   if (!authHeader?.startsWith('Bearer ')) {
