@@ -55,15 +55,10 @@ export default function Supervisor() {
 
   const getDiasMes = (offset = 0) => {
     const hoy = new Date()
-    const año = hoy.getFullYear()
     const mes = hoy.getMonth() + offset
-    const primero = new Date(año, mes, 1)
-    const ultimo = new Date(año, mes + 1, 0)
-    const result = []
-    for (let d = new Date(primero); d <= ultimo; d.setDate(d.getDate() + 1)) {
-      result.push(new Date(d))
-    }
-    return result
+    const año = hoy.getFullYear()
+    const cantDias = new Date(año, mes + 1, 0).getDate()
+    return Array.from({ length: cantDias }, (_, i) => new Date(año, mes, i + 1))
   }
 
   const toLocalISO = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
