@@ -31,11 +31,11 @@ export default function Reportes() {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session }, error } = await supabase.auth.getSession()
       const user = session?.user
-      if (!user) { router.push('/'); return }
+      if (!user || error) { await supabase.auth.signOut(); router.replace('/'); return }
       const { data: sup } = await supabase.from('usuarios').select('*').eq('id', user.id).single()
-      if (sup?.rol !== 'supervisor' && sup?.rol !== 'admin') { router.push('/empleado'); return }
+      if (!sup || (sup.rol !== 'supervisor' && sup.rol !== 'admin')) { await supabase.auth.signOut(); router.replace('/'); return }
       setUsuario(sup)
       if (sup?.rol === 'supervisor') {
         const { data: emps } = await supabase.from('usuarios').select('*').order('nombre')

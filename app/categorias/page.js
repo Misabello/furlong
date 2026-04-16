@@ -34,11 +34,11 @@ export default function Categorias() {
   }, [])
 
   const verificarAcceso = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-      const user = session?.user
-    if (!user) { router.push('/'); return }
+    const { data: { session }, error } = await supabase.auth.getSession()
+    const user = session?.user
+    if (!user || error) { await supabase.auth.signOut(); router.replace('/'); return }
     const { data } = await supabase.from('usuarios').select('rol').eq('id', user.id).single()
-    if (data?.rol !== 'admin') router.push('/')
+    if (!data || data.rol !== 'admin') { await supabase.auth.signOut(); router.replace('/'); return }
   }
 
   const cargarCategorias = async () => {

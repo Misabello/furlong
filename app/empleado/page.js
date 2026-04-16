@@ -86,9 +86,9 @@ export default function Empleado() {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session }, error } = await supabase.auth.getSession()
       const user = session?.user
-      if (!user) { router.push('/'); return }
+      if (!user || error) { await supabase.auth.signOut(); router.replace('/'); return }
       const { data } = await supabase.from('usuarios').select('*').eq('id', user.id).single()
       setUsuario(data)
       cargarAusencias(user.id)

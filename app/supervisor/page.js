@@ -91,11 +91,11 @@ export default function Supervisor() {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session }, error } = await supabase.auth.getSession()
       const user = session?.user
-      if (!user) { router.push('/'); return }
+      if (!user || error) { await supabase.auth.signOut(); router.replace('/'); return }
       const { data: sup } = await supabase.from('usuarios').select('*').eq('id', user.id).single()
-      if (sup?.rol !== 'supervisor') { router.push('/empleado'); return }
+      if (!sup || sup.rol !== 'supervisor') { await supabase.auth.signOut(); router.replace('/'); return }
       setUsuario(sup)
       let empList
       const { data: dept } = await supabase.from('departamentos').select('nombre').eq('supervisor_id', user.id).single()

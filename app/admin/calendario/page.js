@@ -36,11 +36,11 @@ export default function CalendarioAdmin() {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session }, error } = await supabase.auth.getSession()
       const user = session?.user
-      if (!user) { router.push('/'); return }
+      if (!user || error) { await supabase.auth.signOut(); router.replace('/'); return }
       const { data } = await supabase.from('usuarios').select('rol').eq('id', user.id).single()
-      if (data?.rol !== 'admin') { router.push('/'); return }
+      if (!data || data.rol !== 'admin') { await supabase.auth.signOut(); router.replace('/'); return }
       const { data: emps } = await supabase.from('usuarios').select('*').neq('rol', 'admin').order('departamento').order('nombre')
       setEmpleados(emps || [])
     }

@@ -34,11 +34,11 @@ export default function Usuarios() {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session }, error } = await supabase.auth.getSession()
       const user = session?.user
-      if (!user) { router.push('/'); return }
+      if (!user || error) { await supabase.auth.signOut(); router.replace('/'); return }
       const { data: perfil } = await supabase.from('usuarios').select('rol').eq('id', user.id).single()
-      if (perfil?.rol !== 'supervisor') { router.push('/empleado'); return }
+      if (!perfil || perfil.rol !== 'supervisor') { await supabase.auth.signOut(); router.replace('/'); return }
       const [{ data: dept }, depts] = await Promise.all([
         supabase.from('departamentos').select('nombre').eq('supervisor_id', user.id).single(),
         supabase.from('departamentos').select('*').order('nombre')
