@@ -12,7 +12,7 @@ export default function Supervisor() {
   const [ausencias, setAusencias] = useState([])
   const [adjuntosCalendario, setAdjuntosCalendario] = useState([])
   const [empleadosTodos, setEmpleadosTodos] = useState([])
-  const [semanaOffset, setSemanaOffset] = useState(0)
+  const [mesOffset, setMesOffset] = useState(0)
   const [filtroMotivo, setFiltroMotivo] = useState('todos')
   const [busquedaUsuario, setBusquedaUsuario] = useState('')
   const [filtroDesde, setFiltroDesde] = useState('')
@@ -53,22 +53,25 @@ export default function Supervisor() {
   const { categorias } = useCategorias()
   const router = useRouter()
 
-  const getDiasSemana = (offset = 0) => {
+  const getDiasMes = (offset = 0) => {
     const hoy = new Date()
-    const lunes = new Date(hoy)
-    lunes.setDate(hoy.getDate() - hoy.getDay() + 1 + offset * 15)
-    return Array.from({ length: 15 }, (_, i) => {
-      const d = new Date(lunes)
-      d.setDate(lunes.getDate() + i)
-      return d
-    })
+    const año = hoy.getFullYear()
+    const mes = hoy.getMonth() + offset
+    const primero = new Date(año, mes, 1)
+    const ultimo = new Date(año, mes + 1, 0)
+    const result = []
+    for (let d = new Date(primero); d <= ultimo; d.setDate(d.getDate() + 1)) {
+      result.push(new Date(d))
+    }
+    return result
   }
 
   const toLocalISO = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 
-  const dias = getDiasSemana(semanaOffset)
+  const dias = getDiasMes(mesOffset)
+  const mesNombre = dias[0].toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
   const fechaInicio = modoFiltro && filtroDesde ? filtroDesde : toLocalISO(dias[0])
-  const fechaFin = modoFiltro && filtroHasta ? filtroHasta : toLocalISO(dias[14])
+  const fechaFin = modoFiltro && filtroHasta ? filtroHasta : toLocalISO(dias[dias.length - 1])
 
   const diasMostrar = modoFiltro && filtroDesde && filtroHasta
     ? (() => {
@@ -132,7 +135,7 @@ export default function Supervisor() {
       setAdjuntosCalendario(adj || [])
     }).catch(() => {})
     return () => { activo = false }
-  }, [empleadosTodos, semanaOffset, filtroMotivo, filtroDesde, filtroHasta, modoFiltro])
+  }, [empleadosTodos, mesOffset, filtroMotivo, filtroDesde, filtroHasta, modoFiltro])
 
   const cargarMisAusencias = async (empList) => {
     const list = empList || empleados
@@ -412,9 +415,9 @@ export default function Supervisor() {
 
             {!modoFiltro && (
               <div className="flex items-center justify-between bg-white rounded-xl shadow px-4 py-3 mb-4">
-                <button onClick={() => setSemanaOffset(s => s - 1)} className="text-blue-600 text-xs font-medium">← Anterior</button>
-                <p className="text-gray-700 text-xs font-medium">{formatFecha(dias[0])} - {formatFecha(dias[14])}</p>
-                <button onClick={() => setSemanaOffset(s => s + 1)} className="text-blue-600 text-xs font-medium">Siguiente →</button>
+                <button onClick={() => setMesOffset(m => m - 1)} className="text-blue-600 text-xs font-medium">← Mes anterior</button>
+                <p className="text-gray-700 text-xs font-semibold capitalize">{mesNombre}</p>
+                <button onClick={() => setMesOffset(m => m + 1)} className="text-blue-600 text-xs font-medium">Mes siguiente →</button>
               </div>
             )}
 

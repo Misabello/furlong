@@ -31,7 +31,7 @@ export default function Empleado() {
   const [empleadosTodos, setEmpleadosTodos] = useState([])
   const [ausenciasCal, setAusenciasCal] = useState([])
   const [adjuntosCal, setAdjuntosCal] = useState([])
-  const [semanaOffsetCal, setSemanaOffsetCal] = useState(0)
+  const [mesOffsetCal, setMesOffsetCal] = useState(0)
   const [filtroMotivoCal, setFiltroMotivoCal] = useState('todos')
   const [busquedaUsuarioCal, setBusquedaUsuarioCal] = useState('')
   const [modoFiltroCal, setModoFiltroCal] = useState(false)
@@ -41,22 +41,25 @@ export default function Empleado() {
   const router = useRouter()
 
   // Helpers calendario
-  const getDiasSemanaCal = (offset = 0) => {
+  const getDiasMesCal = (offset = 0) => {
     const hoy = new Date()
-    const lunes = new Date(hoy)
-    lunes.setDate(hoy.getDate() - hoy.getDay() + 1 + offset * 15)
-    return Array.from({ length: 15 }, (_, i) => {
-      const d = new Date(lunes)
-      d.setDate(lunes.getDate() + i)
-      return d
-    })
+    const año = hoy.getFullYear()
+    const mes = hoy.getMonth() + offset
+    const primero = new Date(año, mes, 1)
+    const ultimo = new Date(año, mes + 1, 0)
+    const result = []
+    for (let d = new Date(primero); d <= ultimo; d.setDate(d.getDate() + 1)) {
+      result.push(new Date(d))
+    }
+    return result
   }
 
   const toLocalISO = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 
-  const diasCal = getDiasSemanaCal(semanaOffsetCal)
+  const diasCal = getDiasMesCal(mesOffsetCal)
+  const mesNombreCal = diasCal[0].toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
   const fechaInicioCal = modoFiltroCal && filtroDesde ? filtroDesde : toLocalISO(diasCal[0])
-  const fechaFinCal = modoFiltroCal && filtroHasta ? filtroHasta : toLocalISO(diasCal[14])
+  const fechaFinCal = modoFiltroCal && filtroHasta ? filtroHasta : toLocalISO(diasCal[diasCal.length - 1])
 
   const diasMostrarCal = modoFiltroCal && filtroDesde && filtroHasta
     ? (() => {
@@ -125,7 +128,7 @@ export default function Empleado() {
       setAdjuntosCal(adj || [])
     }).catch(() => {})
     return () => { activo = false }
-  }, [empleadosTodos, semanaOffsetCal, filtroMotivoCal, filtroDesde, filtroHasta, modoFiltroCal])
+  }, [empleadosTodos, mesOffsetCal, filtroMotivoCal, filtroDesde, filtroHasta, modoFiltroCal])
 
   const cargarAusencias = async (id) => {
     const { data } = await supabase.from('ausencias').select('*').eq('empleado_id', id).order('fecha', { ascending: false })
@@ -410,9 +413,9 @@ export default function Empleado() {
 
             {!modoFiltroCal && (
               <div className="flex items-center justify-between bg-white rounded-xl shadow px-4 py-3 mb-4">
-                <button onClick={() => setSemanaOffsetCal(s => s - 1)} className="text-blue-600 text-xs font-medium">← Anterior</button>
-                <p className="text-gray-700 text-xs font-medium">{formatFechaCal(diasCal[0])} - {formatFechaCal(diasCal[14])}</p>
-                <button onClick={() => setSemanaOffsetCal(s => s + 1)} className="text-blue-600 text-xs font-medium">Siguiente →</button>
+                <button onClick={() => setMesOffsetCal(m => m - 1)} className="text-blue-600 text-xs font-medium">← Mes anterior</button>
+                <p className="text-gray-700 text-xs font-semibold capitalize">{mesNombreCal}</p>
+                <button onClick={() => setMesOffsetCal(m => m + 1)} className="text-blue-600 text-xs font-medium">Mes siguiente →</button>
               </div>
             )}
 
