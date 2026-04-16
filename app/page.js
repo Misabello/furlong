@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
@@ -11,6 +11,17 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [mensajeRecuperar, setMensajeRecuperar] = useState('')
   const router = useRouter()
+
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session?.user) return
+      const { data: usuario } = await supabase.from('usuarios').select('rol').eq('id', session.user.id).single()
+      if (!usuario) return
+      if (usuario.rol === 'admin') router.push('/admin')
+      else if (usuario.rol === 'supervisor') router.push('/supervisor')
+      else router.push('/empleado')
+    })
+  }, [])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -87,6 +98,7 @@ export default function Login() {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="tu@email.com"
+              autoComplete="username"
               required
             />
           </div>
@@ -98,6 +110,7 @@ export default function Login() {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="••••••••"
+              autoComplete="current-password"
               required
             />
           </div>

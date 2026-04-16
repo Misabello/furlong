@@ -49,16 +49,17 @@ export default function CalendarioAdmin() {
 
   useEffect(() => {
     if (empleados.length === 0) return
-    const cargarAusencias = async () => {
-      const ids = empleados.map(e => e.id)
-      const [{ data }, adj] = await Promise.all([
-        supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin),
-        fetch(`/api/adjuntos?empleadoIds=${ids.join(',')}`).then(r => r.json())
-      ])
+    let activo = true
+    const ids = empleados.map(e => e.id)
+    Promise.all([
+      supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin),
+      fetch(`/api/adjuntos?empleadoIds=${ids.join(',')}`).then(r => r.json())
+    ]).then(([{ data }, adj]) => {
+      if (!activo) return
       setAusencias(data || [])
       setAdjuntos(adj || [])
-    }
-    cargarAusencias()
+    }).catch(() => {})
+    return () => { activo = false }
   }, [empleados, semanaOffset])
 
   const empleadosFiltrados = empleados

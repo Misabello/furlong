@@ -126,11 +126,19 @@ export default function Admin() {
 
   useEffect(() => {
     if (usuarios.length === 0) return
+    let activo = true
     const ids = usuarios.map(u => u.id)
     let query = supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin)
     if (filtroMotivo !== 'todos') query = query.eq('motivo', filtroMotivo)
-    query.then(({ data }) => setAusencias(data || []))
-    fetch(`/api/adjuntos?empleadoIds=${ids.join(',')}`).then(r => r.json()).then(data => setAdjuntosCalendario(data || []))
+    Promise.all([
+      query,
+      fetch(`/api/adjuntos?empleadoIds=${ids.join(',')}`).then(r => r.json())
+    ]).then(([{ data }, adj]) => {
+      if (!activo) return
+      setAusencias(data || [])
+      setAdjuntosCalendario(adj || [])
+    }).catch(() => {})
+    return () => { activo = false }
   }, [usuarios, semanaOffset, filtroMotivo, filtroDesde, filtroHasta, modoFiltro])
 
   const cargarUsuarios = async () => {
@@ -325,7 +333,7 @@ export default function Admin() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    router.push('/')
+    window.location.href = '/'
   }
 
   const handleEliminarAus = async (ids) => {

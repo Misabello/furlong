@@ -33,25 +33,31 @@ export default function Usuarios() {
   const router = useRouter()
 
   useEffect(() => {
-    verificarAcceso()
-    cargarUsuarios()
-    cargarDepartamentos()
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
+      if (!user) { router.push('/'); return }
+      const { data: perfil } = await supabase.from('usuarios').select('rol').eq('id', user.id).single()
+      if (perfil?.rol !== 'supervisor') { router.push('/empleado'); return }
+      const [{ data: dept }, depts] = await Promise.all([
+        supabase.from('departamentos').select('nombre').eq('supervisor_id', user.id).single(),
+        supabase.from('departamentos').select('*').order('nombre')
+      ])
+      setDepartamentos(depts.data || [])
+      let query = supabase.from('usuarios').select('*').order('nombre')
+      if (dept?.nombre) query = query.eq('departamento', dept.nombre)
+      const { data } = await query
+      setUsuarios(data || [])
+    }
+    init()
   }, [])
-
-  const verificarAcceso = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    const user = session?.user
-    if (!user) { router.push('/'); return }
-    const { data } = await supabase.from('usuarios').select('rol').eq('id', user.id).single()
-    if (data?.rol !== 'supervisor') router.push('/empleado')
-  }
 
   const cargarUsuarios = async () => {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
     if (!user) return
     const { data: dept } = await supabase.from('departamentos').select('nombre').eq('supervisor_id', user.id).single()
-    let query = supabase.from('usuarios').select('*, dept:departamento(nombre)').order('nombre')
+    let query = supabase.from('usuarios').select('*').order('nombre')
     if (dept?.nombre) query = query.eq('departamento', dept.nombre)
     const { data } = await query
     setUsuarios(data || [])

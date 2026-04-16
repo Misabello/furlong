@@ -119,15 +119,19 @@ export default function Supervisor() {
 
   useEffect(() => {
     if (empleadosTodos.length === 0) return
-    const cargarAusencias = async () => {
-      const ids = empleadosTodos.map(e => e.id)
-      let query = supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin)
-      if (filtroMotivo !== 'todos') query = query.eq('motivo', filtroMotivo)
-      const [{ data }, adj] = await Promise.all([query, fetch(`/api/adjuntos?empleadoIds=${ids.join(',')}`).then(r => r.json())])
+    let activo = true
+    const ids = empleadosTodos.map(e => e.id)
+    let query = supabase.from('ausencias').select('*').in('empleado_id', ids).gte('fecha', fechaInicio).lte('fecha', fechaFin)
+    if (filtroMotivo !== 'todos') query = query.eq('motivo', filtroMotivo)
+    Promise.all([
+      query,
+      fetch(`/api/adjuntos?empleadoIds=${ids.join(',')}`).then(r => r.json())
+    ]).then(([{ data }, adj]) => {
+      if (!activo) return
       setAusencias(data || [])
       setAdjuntosCalendario(adj || [])
-    }
-    cargarAusencias()
+    }).catch(() => {})
+    return () => { activo = false }
   }, [empleadosTodos, semanaOffset, filtroMotivo, filtroDesde, filtroHasta, modoFiltro])
 
   const cargarMisAusencias = async (empList) => {
@@ -315,9 +319,8 @@ export default function Supervisor() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    router.push('/')
+    window.location.href = '/'
   }
-
 
   if (!usuario) return <main className="min-h-screen bg-gray-100 flex items-center justify-center"><p className="text-gray-500">Cargando...</p></main>
 
