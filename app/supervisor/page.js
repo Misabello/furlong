@@ -416,7 +416,7 @@ export default function Supervisor() {
               </div>
             )}
 
-            <div className="bg-white rounded-xl shadow overflow-x-auto">
+            <div className="bg-white rounded-xl shadow overflow-x-auto overflow-y-auto" style={{ maxHeight: '65vh' }}>
               {(() => {
                 const empConEventos = empleadosTodos
                   .filter(emp => !busquedaUsuario.trim() || emp.nombre?.toLowerCase().includes(busquedaUsuario.toLowerCase().trim()))
@@ -428,9 +428,9 @@ export default function Supervisor() {
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="border-b bg-gray-50">
-                        <th className="text-left px-3 py-2 text-gray-600 font-semibold min-w-28 sticky left-0 bg-gray-50 z-10">Fecha</th>
+                        <th className="text-left px-3 py-2 text-gray-600 font-semibold min-w-28 sticky left-0 top-0 bg-gray-50 z-30">Fecha</th>
                         {empConEventos.map(emp => (
-                          <th key={emp.id} className="px-2 py-2 text-gray-600 font-semibold text-center min-w-28">
+                          <th key={emp.id} className="px-2 py-2 text-gray-600 font-semibold text-center min-w-28 sticky top-0 bg-gray-50 z-20">
                             <p>{emp.nombre.split(',')[0]}</p>
                             {emp.rol === 'supervisor' && <span className="text-purple-500 font-normal" style={{fontSize:'10px'}}>Supervisor</span>}
                           </th>
