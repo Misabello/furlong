@@ -18,7 +18,7 @@ export default function Admin() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [tab, setTab] = useState('calendario')
-  const [semanaOffset, setSemanaOffset] = useState(0)
+  const [mesOffset, setMesOffset] = useState(0)
   const [filtroDept, setFiltroDept] = useState('Todos')
   const [filtroMotivo, setFiltroMotivo] = useState('todos')
   const [busquedaUsuario, setBusquedaUsuario] = useState('')
@@ -67,22 +67,25 @@ export default function Admin() {
   const [tablaSortDir, setTablaSortDir] = useState('asc')
   const [filtroEmpleadoAus, setFiltroEmpleadoAus] = useState('')
 
-  const getDiasSemana = (offset = 0) => {
+  const getDiasMes = (offset = 0) => {
     const hoy = new Date()
-    const lunes = new Date(hoy)
-    lunes.setDate(hoy.getDate() - hoy.getDay() + 1 + offset * 15)
-    return Array.from({ length: 15 }, (_, i) => {
-      const d = new Date(lunes)
-      d.setDate(lunes.getDate() + i)
-      return d
-    })
+    const año = hoy.getFullYear()
+    const mes = hoy.getMonth() + offset
+    const primero = new Date(año, mes, 1)
+    const ultimo = new Date(año, mes + 1, 0)
+    const result = []
+    for (let d = new Date(primero); d <= ultimo; d.setDate(d.getDate() + 1)) {
+      result.push(new Date(d))
+    }
+    return result
   }
 
   const toLocalISO = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 
-  const dias = getDiasSemana(semanaOffset)
+  const dias = getDiasMes(mesOffset)
   const fechaInicio = modoFiltro && filtroDesde ? filtroDesde : toLocalISO(dias[0])
-  const fechaFin = modoFiltro && filtroHasta ? filtroHasta : toLocalISO(dias[14])
+  const fechaFin = modoFiltro && filtroHasta ? filtroHasta : toLocalISO(dias[dias.length - 1])
+  const mesNombreCal = dias[0].toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
   const formatFecha = (d) => d.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })
   const getCat = (nombre) => categorias.find(c => c.nombre === nombre) || { emoji: '📝', color: 'bg-gray-100 text-gray-600' }
 
@@ -139,7 +142,7 @@ export default function Admin() {
       setAdjuntosCalendario(adj || [])
     }).catch(() => {})
     return () => { activo = false }
-  }, [usuarios, semanaOffset, filtroMotivo, filtroDesde, filtroHasta, modoFiltro])
+  }, [usuarios, mesOffset, filtroMotivo, filtroDesde, filtroHasta, modoFiltro])
 
   const cargarUsuarios = async () => {
     const { data } = await supabase.from('usuarios').select('*').order('nombre')
@@ -520,9 +523,9 @@ export default function Admin() {
 
             {!modoFiltro && (
               <div className="flex items-center justify-between bg-white rounded-xl shadow px-4 py-3 mb-4">
-                <button onClick={() => setSemanaOffset(s => s - 1)} className="text-blue-600 text-xs font-medium">← Anterior</button>
-                <p className="text-gray-700 text-xs font-medium">{formatFecha(dias[0])} - {formatFecha(dias[14])}</p>
-                <button onClick={() => setSemanaOffset(s => s + 1)} className="text-blue-600 text-xs font-medium">Siguiente →</button>
+                <button onClick={() => setMesOffset(m => m - 1)} className="text-blue-600 text-xs font-medium">← Mes anterior</button>
+                <p className="text-gray-700 text-xs font-semibold capitalize">{mesNombreCal}</p>
+                <button onClick={() => setMesOffset(m => m + 1)} className="text-blue-600 text-xs font-medium">Mes siguiente →</button>
               </div>
             )}
 
