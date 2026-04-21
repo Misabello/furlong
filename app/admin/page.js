@@ -93,8 +93,8 @@ export default function Admin() {
   const diasMostrar = modoFiltro && filtroDesde && filtroHasta
     ? (() => {
         const result = []
-        const current = new Date(filtroDesde)
-        const end = new Date(filtroHasta)
+        const current = new Date(filtroDesde + 'T12:00:00')
+        const end = new Date(filtroHasta + 'T12:00:00')
         while (current <= end) {
           if (current.getDay() !== 0 && current.getDay() !== 6) result.push(new Date(current))
           current.setDate(current.getDate() + 1)
@@ -252,7 +252,7 @@ export default function Admin() {
 
   const empleadosFiltrados = usuarios.filter(u => {
     if (filtroDept !== 'Todos' && u.departamento !== filtroDept) return false
-    if (busquedaUsuario.trim() && !u.nombre?.toLowerCase().includes(busquedaUsuario.toLowerCase().trim())) return false
+    if (busquedaUsuario && u.id !== busquedaUsuario) return false
     return true
   })
 
@@ -483,7 +483,10 @@ export default function Admin() {
               <div className="flex flex-wrap gap-3 items-end">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Usuario</label>
-                  <input type="text" value={busquedaUsuario} onChange={e => setBusquedaUsuario(e.target.value)} placeholder="Buscar por nombre..." className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-44" />
+                  <select value={busquedaUsuario} onChange={e => setBusquedaUsuario(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-44">
+                    <option value="">Todos</option>
+                    {usuarios.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Departamento</label>

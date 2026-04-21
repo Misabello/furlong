@@ -71,8 +71,8 @@ export default function Supervisor() {
   const diasMostrar = modoFiltro && filtroDesde && filtroHasta
     ? (() => {
         const result = []
-        const current = new Date(filtroDesde)
-        const end = new Date(filtroHasta)
+        const current = new Date(filtroDesde + 'T12:00:00')
+        const end = new Date(filtroHasta + 'T12:00:00')
         while (current <= end) {
           if (current.getDay() !== 0 && current.getDay() !== 6) result.push(new Date(current))
           current.setDate(current.getDate() + 1)
@@ -381,7 +381,10 @@ export default function Supervisor() {
               <div className="flex flex-wrap gap-3 items-end">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Usuario</label>
-                  <input type="text" value={busquedaUsuario} onChange={e => setBusquedaUsuario(e.target.value)} placeholder="Buscar por nombre..." className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-44" />
+                  <select value={busquedaUsuario} onChange={e => setBusquedaUsuario(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-44">
+                    <option value="">Todos</option>
+                    {empleadosTodos.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Tipo de ausencia</label>
@@ -419,7 +422,7 @@ export default function Supervisor() {
             <div className="bg-white rounded-xl shadow overflow-x-auto overflow-y-auto" style={{ maxHeight: '65vh' }}>
               {(() => {
                 const empConEventos = empleadosTodos
-                  .filter(emp => !busquedaUsuario.trim() || emp.nombre?.toLowerCase().includes(busquedaUsuario.toLowerCase().trim()))
+                  .filter(emp => !busquedaUsuario || emp.id === busquedaUsuario)
                   .filter(emp => diasMostrar.some(d => tieneAusencia(emp.id, d)))
                 if (empConEventos.length === 0) {
                   return <p className="text-center text-gray-400 py-8">No hay ausencias en este periodo.</p>
