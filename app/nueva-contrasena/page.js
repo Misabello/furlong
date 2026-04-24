@@ -1,6 +1,6 @@
 'use client'
 export const dynamic = 'force-dynamic'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
@@ -10,7 +10,20 @@ export default function NuevaContrasena() {
   const [confirmar, setConfirmar] = useState('')
   const [mensaje, setMensaje] = useState('')
   const [loading, setLoading] = useState(false)
+  const [sesionLista, setSesionLista] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') setSesionLista(true)
+    })
+    // Por si el evento ya disparó antes de que el componente montara
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setSesionLista(true)
+      else if (!sesionLista) router.replace('/')
+    })
+    return () => subscription.unsubscribe()
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -22,7 +35,8 @@ export default function NuevaContrasena() {
       setMensaje('Error al actualizar la contrasena.')
     } else {
       setMensaje('Contrasena actualizada correctamente.')
-      setTimeout(() => router.push('/'), 2000)
+      await supabase.auth.signOut()
+      setTimeout(() => router.replace('/'), 2000)
     }
     setLoading(false)
   }

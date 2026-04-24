@@ -105,8 +105,7 @@ export default function Admin() {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession()
-      const user = session?.user
+      const { data: { user }, error } = await supabase.auth.getUser()
       if (!user || error) { await supabase.auth.signOut(); router.replace('/'); return }
       const { data } = await supabase.from('usuarios').select('*').eq('id', user.id).single()
       if (!data || data.rol !== 'admin') { await supabase.auth.signOut(); router.replace('/'); return }

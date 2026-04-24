@@ -31,8 +31,7 @@ export default function Reportes() {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession()
-      const user = session?.user
+      const { data: { user }, error } = await supabase.auth.getUser()
       if (!user || error) { await supabase.auth.signOut(); router.replace('/'); return }
       const { data: sup } = await supabase.from('usuarios').select('*').eq('id', user.id).single()
       if (!sup || (sup.rol !== 'supervisor' && sup.rol !== 'admin')) { await supabase.auth.signOut(); router.replace('/'); return }

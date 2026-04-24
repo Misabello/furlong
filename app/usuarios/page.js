@@ -34,8 +34,7 @@ export default function Usuarios() {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession()
-      const user = session?.user
+      const { data: { user }, error } = await supabase.auth.getUser()
       if (!user || error) { await supabase.auth.signOut(); router.replace('/'); return }
       const { data: perfil } = await supabase.from('usuarios').select('rol').eq('id', user.id).single()
       if (!perfil || perfil.rol !== 'supervisor') { await supabase.auth.signOut(); router.replace('/'); return }

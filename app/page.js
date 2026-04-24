@@ -13,12 +13,12 @@ export default function Login() {
   const router = useRouter()
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
-      if (error || !session?.user) {
-        if (error) await supabase.auth.signOut()
+    supabase.auth.getUser().then(async ({ data: { user }, error }) => {
+      if (error || !user) {
+        await supabase.auth.signOut()
         return
       }
-      const { data: usuario } = await supabase.from('usuarios').select('rol').eq('id', session.user.id).single()
+      const { data: usuario } = await supabase.from('usuarios').select('rol').eq('id', user.id).single()
       if (!usuario) {
         await supabase.auth.signOut()
         return
