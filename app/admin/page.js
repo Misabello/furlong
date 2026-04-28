@@ -14,6 +14,7 @@ export default function Admin() {
   const [adjuntosCalendario, setAdjuntosCalendario] = useState([])
   const [form, setForm] = useState({ nombre: '', email: '', password: '', departamento: '', fecha_ingreso: '', rol: 'empleado', vacaciones_saldo_anterior: '', francos_saldo_anterior: '' })
   const [editando, setEditando] = useState(null)
+  const [nuevaPassword, setNuevaPassword] = useState('')
   const [mensaje, setMensaje] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -270,7 +271,21 @@ export default function Admin() {
         francos_saldo_anterior: form.francos_saldo_anterior !== '' ? Number(form.francos_saldo_anterior) : null
       }).eq('id', editando)
       if (error) { setError('Error al actualizar.') }
-      else { setMensaje('Usuario actualizado.'); setEditando(null); resetForm() }
+      else {
+        if (nuevaPassword) {
+          const res = await fetch('/api/cambiar-contrasena', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: editando, password: nuevaPassword }),
+          })
+          const result = await res.json()
+          if (!result.ok) { setError('Usuario actualizado, pero error al cambiar contraseña: ' + result.error); setLoading(false); return }
+        }
+        setMensaje('Usuario actualizado.' + (nuevaPassword ? ' Contraseña cambiada.' : ''))
+        setEditando(null)
+        setNuevaPassword('')
+        resetForm()
+      }
     } else {
       const res = await fetch('/api/crear-usuario', {
         method: 'POST',
@@ -780,10 +795,15 @@ export default function Admin() {
                   <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
                   <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} disabled={!!editando} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" required={!editando} />
                 </div>
-                {!editando && (
+                {!editando ? (
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Contrasena</label>
                     <input type="password" autoComplete="new-password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ingresá una contraseña" required={!editando} />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Nueva contraseña <span className="text-gray-400 font-normal">(dejar vacío para no cambiar)</span></label>
+                    <input type="password" autoComplete="new-password" value={nuevaPassword} onChange={e => setNuevaPassword(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nueva contraseña (mín. 6 caracteres)" />
                   </div>
                 )}
                 <div>
@@ -816,7 +836,7 @@ export default function Admin() {
                 {mensaje && <p className="text-green-600 text-xs sm:col-span-2">{mensaje}</p>}
                 {error && <p className="text-red-500 text-xs sm:col-span-2">{error}</p>}
                 <div className="sm:col-span-2 flex gap-3 justify-end">
-                  {editando && <button type="button" onClick={() => { setEditando(null); resetForm() }} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm">Cancelar</button>}
+                  {editando && <button type="button" onClick={() => { setEditando(null); setNuevaPassword(''); resetForm() }} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm">Cancelar</button>}
                   <button type="submit" disabled={loading} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium">
                     {loading ? 'Guardando...' : editando ? 'Actualizar' : 'Crear'}
                   </button>

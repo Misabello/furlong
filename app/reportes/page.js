@@ -361,65 +361,6 @@ export default function Reportes() {
 
         {buscado && (
           <>
-            {/* Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-gray-800 text-white rounded-xl p-4 text-center shadow">
-                <p className="text-3xl font-bold">{ausenciasFiltradas.length}</p>
-                <p className="text-xs opacity-80 mt-1">Total ausencias</p>
-              </div>
-              {categorias.slice(0, 3).map(c => (
-                <div key={c.id} className={c.color + ' rounded-xl p-4 text-center shadow'}>
-                  <p className="text-2xl">{c.emoji}</p>
-                  <p className="text-3xl font-bold">{ausenciasFiltradas.filter(a => a.motivo === c.nombre).length}</p>
-                  <p className="text-xs opacity-80 mt-1">{c.nombre}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <div className="bg-white rounded-xl shadow p-6">
-                <h2 className="text-lg font-semibold text-gray-700 mb-4">Top 5 ausencias por empleado</h2>
-                {rankingEmpleados.length === 0 ? <p className="text-gray-400 text-sm">Sin ausencias en este periodo.</p> : (
-                  <ul className="space-y-3">
-                    {rankingEmpleados.map((emp, i) => (
-                      <li key={emp.id} className="flex items-center gap-3">
-                        <span className="text-lg font-bold text-gray-400 w-6">{i + 1}</span>
-                        <div className="flex-1">
-                          <div className="flex justify-between mb-1">
-                            <span className="text-sm font-medium text-gray-700">{emp.nombre}</span>
-                            <span className="text-sm text-gray-500">{emp.ausencias} dias</span>
-                          </div>
-                          <div className="w-full bg-gray-100 rounded-full h-2">
-                            <div className="bg-blue-500 h-2 rounded-full" style={{ width: rankingEmpleados[0].ausencias > 0 ? (emp.ausencias / rankingEmpleados[0].ausencias * 100) + '%' : '0%' }} />
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <div className="bg-white rounded-xl shadow p-6">
-                <h2 className="text-lg font-semibold text-gray-700 mb-4">Ausencias por departamento</h2>
-                {statsPorDept.length === 0 ? <p className="text-gray-400 text-sm">Sin ausencias en este periodo.</p> : (
-                  <ul className="space-y-3">
-                    {statsPorDept.map(({ dept, cantidad }) => (
-                      <li key={dept} className="flex items-center gap-3">
-                        <div className="flex-1">
-                          <div className="flex justify-between mb-1">
-                            <span className="text-sm font-medium text-gray-700">{dept}</span>
-                            <span className="text-sm text-gray-500">{cantidad} dias</span>
-                          </div>
-                          <div className="w-full bg-gray-100 rounded-full h-2">
-                            <div className="bg-purple-500 h-2 rounded-full" style={{ width: statsPorDept[0].cantidad > 0 ? (cantidad / statsPorDept[0].cantidad * 100) + '%' : '0%' }} />
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-
             {/* Resumen agrupado por empleado */}
             <div className="bg-white rounded-xl shadow overflow-x-auto mb-6">
               <div className="px-6 py-4 border-b flex items-center justify-between">
@@ -490,6 +431,65 @@ export default function Reportes() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-gray-800 text-white rounded-xl p-4 text-center shadow">
+                <p className="text-3xl font-bold">{ausenciasFiltradas.length}</p>
+                <p className="text-xs opacity-80 mt-1">Total ausencias</p>
+              </div>
+              {categorias.slice(0, 3).map(c => (
+                <div key={c.id} className={c.color + ' rounded-xl p-4 text-center shadow'}>
+                  <p className="text-2xl">{c.emoji}</p>
+                  <p className="text-3xl font-bold">{ausenciasFiltradas.filter(a => a.motivo === c.nombre).length}</p>
+                  <p className="text-xs opacity-80 mt-1">{c.nombre}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="bg-white rounded-xl shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-700 mb-4">Top 5 ausencias por empleado</h2>
+                {rankingEmpleados.length === 0 ? <p className="text-gray-400 text-sm">Sin ausencias en este periodo.</p> : (
+                  <ul className="space-y-3">
+                    {rankingEmpleados.map((emp, i) => (
+                      <li key={emp.id} className="flex items-center gap-3">
+                        <span className="text-lg font-bold text-gray-400 w-6">{i + 1}</span>
+                        <div className="flex-1">
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm font-medium text-gray-700">{emp.nombre}</span>
+                            <span className="text-sm text-gray-500">{emp.ausencias} dias</span>
+                          </div>
+                          <div className="w-full bg-gray-100 rounded-full h-2">
+                            <div className="bg-blue-500 h-2 rounded-full" style={{ width: rankingEmpleados[0].ausencias > 0 ? (emp.ausencias / rankingEmpleados[0].ausencias * 100) + '%' : '0%' }} />
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="bg-white rounded-xl shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-700 mb-4">Ausencias por departamento</h2>
+                {statsPorDept.length === 0 ? <p className="text-gray-400 text-sm">Sin ausencias en este periodo.</p> : (
+                  <ul className="space-y-3">
+                    {statsPorDept.map(({ dept, cantidad }) => (
+                      <li key={dept} className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm font-medium text-gray-700">{dept}</span>
+                            <span className="text-sm text-gray-500">{cantidad} dias</span>
+                          </div>
+                          <div className="w-full bg-gray-100 rounded-full h-2">
+                            <div className="bg-purple-500 h-2 rounded-full" style={{ width: statsPorDept[0].cantidad > 0 ? (cantidad / statsPorDept[0].cantidad * 100) + '%' : '0%' }} />
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
 
             {/* Detalle completo */}
