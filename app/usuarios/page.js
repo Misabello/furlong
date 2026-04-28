@@ -18,6 +18,7 @@ export default function Usuarios() {
     francos_saldo_anterior: ''
   })
   const [editando, setEditando] = useState(null)
+  const [nuevaPassword, setNuevaPassword] = useState('')
   const [mensaje, setMensaje] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -37,7 +38,7 @@ export default function Usuarios() {
       const { data: { user }, error } = await supabase.auth.getUser()
       if (!user || error) { await supabase.auth.signOut(); router.replace('/'); return }
       const { data: perfil } = await supabase.from('usuarios').select('rol').eq('id', user.id).single()
-      if (!perfil || perfil.rol !== 'supervisor') { await supabase.auth.signOut(); router.replace('/'); return }
+      if (!perfil || (perfil.rol !== 'supervisor' && perfil.rol !== 'admin')) { await supabase.auth.signOut(); router.replace('/'); return }
       const [{ data: dept }, depts] = await Promise.all([
         supabase.from('departamentos').select('nombre').eq('supervisor_id', user.id).single(),
         supabase.from('departamentos').select('*').order('nombre')
@@ -94,7 +95,21 @@ export default function Usuarios() {
         .eq('id', editando)
 
       if (error) { setError('Error al actualizar.') }
-      else { setMensaje('Usuario actualizado.'); setEditando(null); resetForm() }
+      else {
+        if (nuevaPassword) {
+          const res = await fetch('/api/cambiar-contrasena', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: editando, password: nuevaPassword }),
+          })
+          const result = await res.json()
+          if (!result.ok) { setError('Usuario actualizado, pero error al cambiar contraseña: ' + result.error); setLoading(false); return }
+        }
+        setMensaje('Usuario actualizado.' + (nuevaPassword ? ' Contraseña cambiada.' : ''))
+        setEditando(null)
+        setNuevaPassword('')
+        resetForm()
+      }
     } else {
       const res = await fetch('/api/crear-usuario', {
         method: 'POST',
@@ -213,10 +228,15 @@ export default function Usuarios() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} disabled={!!editando} className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" placeholder="juan@furlong.com" required={!editando} />
             </div>
-            {!editando && (
+            {!editando ? (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Contrasena</label>
                 <input type="password" autoComplete="new-password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ingresá una contraseña" required={!editando} />
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nueva contraseña <span className="text-gray-400 font-normal text-xs">(dejar vacío para no cambiar)</span></label>
+                <input type="password" autoComplete="new-password" value={nuevaPassword} onChange={e => setNuevaPassword(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nueva contraseña (mín. 6 caracteres)" />
               </div>
             )}
             <div>
@@ -248,7 +268,7 @@ export default function Usuarios() {
 
             <div className="md:col-span-2 flex gap-3 justify-end">
               {editando && (
-                <button type="button" onClick={() => { setEditando(null); resetForm() }} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">Cancelar</button>
+                <button type="button" onClick={() => { setEditando(null); setNuevaPassword(''); resetForm() }} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">Cancelar</button>
               )}
               <button type="submit" disabled={loading} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-medium">
                 {loading ? 'Guardando...' : editando ? 'Actualizar' : 'Crear usuario'}
